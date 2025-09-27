@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 
-const API_BASE_URL = 'https://a12f967e1089.ngrok-free.app';
+const API_BASE_URL = 'https://67a0fc5c8a02.ngrok-free.app';
 
 export type EntryType = 'hairline' | 'acne' | 'mole';
 export type MedicationCategory = 'hairline' | 'acne' | 'mole';

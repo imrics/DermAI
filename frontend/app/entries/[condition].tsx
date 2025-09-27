@@ -243,7 +243,6 @@ export default function ConditionEntriesScreen() {
       headerLeft: () => (
         <TouchableOpacity style={styles.headerBack} onPress={handleBack}>
           <Ionicons name="chevron-back" size={18} color={TextColors.primary} />
-          <Text style={styles.headerBackText}>Home</Text>
         </TouchableOpacity>
       ),
       headerRight: () => (
@@ -462,7 +461,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   headerIconButton: {
-    marginRight: spacing(1.5),
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -475,17 +473,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
   },
   headerBack: {
-    flexDirection: 'row',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
-    paddingHorizontal: spacing(1),
-    paddingVertical: spacing(0.5),
-    marginLeft: spacing(1),
-  },
-  headerBackText: {
-    marginLeft: spacing(0.5),
-    fontSize: 15,
-    fontWeight: '600',
-    color: TextColors.primary,
+    justifyContent: 'center'
   },
   headerButtonDisabled: {
     opacity: 0.6,

@@ -78,7 +78,6 @@ export default function EntryDetailScreen() {
     if (entry) {
       navigation.setOptions({
         title: formatFullDate(entry.created_at) || 'Entry Detail',
-        headerBackTitle: 'Home',
         headerBackTitleVisible: true,
         headerLeft: () => (
           <TouchableOpacity style={styles.headerBack} onPress={handleBack}>
@@ -328,9 +327,7 @@ const styles = StyleSheet.create({
   headerBack: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing(1),
-    paddingVertical: spacing(0.5),
-    marginLeft: spacing(1),
+    marginLeft: -8, // Compensate for default header padding
   },
   headerBackText: {
     marginLeft: spacing(0.5),
