@@ -1,155 +1,341 @@
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.lib import colors
+import os
+import subprocess
+import tempfile
 from datetime import datetime
 from typing import List
-import os
-from app.models import Entry, HairlineEntry, MoleEntry, AcneEntry, User
+from app.models import HairlineEntry, MoleEntry, AcneEntry, User
 
 async def generate_user_report(user_id: str) -> str:
     user = await User.find_one(User.user_id == user_id)
     if not user:
         raise ValueError("User not found")
     
-    # Get all entries for user
-    entries = await Entry.find(Entry.user_id == user_id).sort(-Entry.created_at).to_list()
+    # Get all entry types separately (fixing the query issue)
+    hairline_entries = await HairlineEntry.find({"user_id": user_id}).sort(-HairlineEntry.created_at).to_list()
+    acne_entries = await AcneEntry.find({"user_id": user_id}).sort(-AcneEntry.created_at).to_list()
+    mole_entries = await MoleEntry.find({"user_id": user_id}).sort(-MoleEntry.created_at).to_list()
     
-    filename = f"reports/dermatology_report_{user_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-    os.makedirs("reports", exist_ok=True)
+    # Combine all entries
+    all_entries = hairline_entries + acne_entries + mole_entries
+    all_entries.sort(key=lambda x: x.created_at, reverse=True)
     
-    doc = SimpleDocTemplate(filename, pagesize=A4)
-    styles = getSampleStyleSheet()
-    story = []
+    # Generate LaTeX content
+    latex_content = _generate_latex_content(user, all_entries, hairline_entries, acne_entries, mole_entries)
     
-    # Title
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=24,
-        spaceAfter=30,
-        alignment=1  # Center
-    )
-    story.append(Paragraph("Dermatological Assessment Report", title_style))
-    story.append(Spacer(1, 20))
+    # Create temporary directory for LaTeX compilation
+    with tempfile.TemporaryDirectory() as temp_dir:
+        tex_file = os.path.join(temp_dir, "report.tex")
+        
+        # Write LaTeX content to file
+        with open(tex_file, 'w', encoding='utf-8') as f:
+            f.write(latex_content)
+        
+        # Compile LaTeX to PDF
+        try:
+            subprocess.run([
+                'pdflatex', 
+                '-interaction=nonstopmode',
+                '-output-directory', temp_dir,
+                tex_file
+            ], check=True, capture_output=True)
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"LaTeX compilation failed: {e}")
+        
+        # Move PDF to reports directory
+        os.makedirs("reports", exist_ok=True)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        final_pdf = f"reports/dermatology_report_{user_id}_{timestamp}.pdf"
+        
+        temp_pdf = os.path.join(temp_dir, "report.pdf")
+        if os.path.exists(temp_pdf):
+            os.rename(temp_pdf, final_pdf)
+            return final_pdf
+        else:
+            raise RuntimeError("PDF compilation succeeded but output file not found")
+
+def _generate_latex_content(user, all_entries: List, hairline_entries: List, acne_entries: List, mole_entries: List) -> str:
+    report_date = datetime.now().strftime('%B %d, %Y')
     
-    # Patient Information
-    story.append(Paragraph("Patient Information", styles['Heading2']))
-    patient_data = [
-        ['Name:', user.name],
-        ['Patient ID:', user_id],
-        ['Report Date:', datetime.now().strftime('%B %d, %Y')],
-        ['Total Entries:', str(len(entries))]
-    ]
-    patient_table = Table(patient_data, colWidths=[2*inch, 4*inch])
-    patient_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 12),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
-    ]))
-    story.append(patient_table)
-    story.append(Spacer(1, 30))
+    latex_content = f"""
+\\documentclass[11pt,letterpaper]{{article}}
+\\usepackage[margin=1in]{{geometry}}
+\\usepackage{{graphicx}}
+\\usepackage{{fancyhdr}}
+\\usepackage{{titlesec}}
+\\usepackage{{xcolor}}
+\\usepackage{{tabularx}}
+\\usepackage{{booktabs}}
+\\usepackage{{enumitem}}
+\\usepackage{{hyperref}}
+\\usepackage{{tcolorbox}}
+\\usepackage{{fontspec}}
+
+% Define colors
+\\definecolor{{dermblue}}{{RGB}}{{41, 128, 185}}
+\\definecolor{{dermgray}}{{RGB}}{{52, 73, 94}}
+\\definecolor{{lightgray}}{{RGB}}{{236, 240, 241}}
+
+% Configure header and footer
+\\pagestyle{{fancy}}
+\\fancyhf{{}}
+\\fancyhead[L]{{\\textcolor{{dermblue}}{{DermAI Report}}}}
+\\fancyhead[R]{{\\textcolor{{dermgray}}{{Page \\thepage}}}}
+\\fancyfoot[C]{{\\textcolor{{dermgray}}{{Generated on {report_date}}}}}
+\\renewcommand{{\\headrulewidth}}{{1pt}}
+\\renewcommand{{\\footrulewidth}}{{0.5pt}}
+
+% Configure section titles
+\\titleformat{{\\section}}{{\\Large\\bfseries\\color{{dermblue}}}}{{\\thesection}}{{1em}}{{}}
+\\titleformat{{\\subsection}}{{\\large\\bfseries\\color{{dermgray}}}}{{\\thesubsection}}{{1em}}{{}}
+
+% Configure tcolorbox
+\\tcbuselibrary{{skins,breakable}}
+
+\\begin{{document}}
+
+% Title Page
+\\begin{{titlepage}}
+\\centering
+\\vspace*{{2cm}}
+
+{{\\Huge\\textcolor{{dermblue}}{{\\textbf{{Dermatological Assessment Report}}}}}}
+
+\\vspace{{1.5cm}}
+
+\\begin{{tcolorbox}}[colback=lightgray, colframe=dermblue, boxrule=2pt, width=0.8\\textwidth]
+\\centering
+\\Large\\textbf{{Patient Information}}
+\\vspace{{0.5cm}}
+
+\\begin{{tabular}}{{ll}}
+\\textbf{{Name:}} & {user.name} \\\\[0.3cm]
+\\textbf{{Patient ID:}} & {user.user_id[:8]}... \\\\[0.3cm]
+\\textbf{{Report Date:}} & {report_date} \\\\[0.3cm]
+\\textbf{{Total Entries:}} & {len(all_entries)} \\\\[0.3cm]
+\\textbf{{Entry Types:}} & Hairline: {len(hairline_entries)}, Acne: {len(acne_entries)}, Mole: {len(mole_entries)}
+\\end{{tabular}}
+\\end{{tcolorbox}}
+
+\\vfill
+
+{{\\large\\textcolor{{dermgray}}{{Generated by DermAI Platform}}}}
+\\end{{titlepage}}
+
+\\tableofcontents
+\\newpage
+
+"""
+
+    # Add summary section
+    latex_content += _generate_summary_section(all_entries, hairline_entries, acne_entries, mole_entries)
     
-    # Group entries by type
-    hairline_entries = [e for e in entries if isinstance(e, HairlineEntry)]
-    acne_entries = [e for e in entries if isinstance(e, AcneEntry)]
-    mole_entries = [e for e in entries if isinstance(e, MoleEntry)]
-    
-    # Hairline Section
+    # Add hairline section
     if hairline_entries:
-        story.append(Paragraph("Hairline Assessment", styles['Heading2']))
-        for entry in hairline_entries:
-            story.extend(_format_hairline_entry(entry, styles))
-        story.append(Spacer(1, 20))
+        latex_content += _generate_hairline_section(hairline_entries)
     
-    # Acne Section
+    # Add acne section
     if acne_entries:
-        story.append(Paragraph("Acne Assessment", styles['Heading2']))
-        for entry in acne_entries:
-            story.extend(_format_acne_entry(entry, styles))
-        story.append(Spacer(1, 20))
+        latex_content += _generate_acne_section(acne_entries)
     
-    # Mole Section
+    # Add mole section
     if mole_entries:
-        story.append(Paragraph("Mole Assessment", styles['Heading2']))
-        for entry in mole_entries:
-            story.extend(_format_mole_entry(entry, styles))
+        latex_content += _generate_mole_section(mole_entries)
     
-    doc.build(story)
-    return filename
+    latex_content += "\\end{document}"
+    
+    return latex_content
 
-def _format_hairline_entry(entry: HairlineEntry, styles) -> List:
-    elements = []
-    
-    # Entry header
-    elements.append(Paragraph(f"Entry Date: {entry.created_at.strftime('%B %d, %Y')}", styles['Heading3']))
-    elements.append(Paragraph(f"Sequence ID: {entry.sequence_id}", styles['Normal']))
-    
-    if entry.norwood_score:
-        elements.append(Paragraph(f"Norwood Score: {entry.norwood_score}", styles['Normal']))
-    
-    if entry.ai_comments:
-        elements.append(Paragraph("AI Analysis:", styles['Heading4']))
-        elements.append(Paragraph(entry.ai_comments, styles['Normal']))
-    
-    if entry.recommendations:
-        elements.append(Paragraph("Recommendations:", styles['Heading4']))
-        elements.append(Paragraph(entry.recommendations, styles['Normal']))
-    
-    if entry.user_notes:
-        elements.append(Paragraph("Patient Notes:", styles['Heading4']))
-        elements.append(Paragraph(entry.user_notes, styles['Normal']))
-    
-    elements.append(Spacer(1, 20))
-    return elements
+def _generate_summary_section(all_entries: List, hairline_entries: List, acne_entries: List, mole_entries: List) -> str:
+    if not all_entries:
+        return """
+\\section{Summary}
+\\begin{tcolorbox}[colback=lightgray, colframe=dermblue]
+No entries found for this patient.
+\\end{tcolorbox}
+\\newpage
 
-def _format_acne_entry(entry: AcneEntry, styles) -> List:
-    elements = []
+"""
     
-    elements.append(Paragraph(f"Entry Date: {entry.created_at.strftime('%B %d, %Y')}", styles['Heading3']))
-    elements.append(Paragraph(f"Sequence ID: {entry.sequence_id}", styles['Normal']))
+    latest_entry = max(all_entries, key=lambda x: x.created_at)
+    oldest_entry = min(all_entries, key=lambda x: x.created_at)
     
-    if entry.severity_level:
-        elements.append(Paragraph(f"Severity Level: {entry.severity_level}", styles['Normal']))
-    
-    if entry.ai_comments:
-        elements.append(Paragraph("AI Analysis:", styles['Heading4']))
-        elements.append(Paragraph(entry.ai_comments, styles['Normal']))
-    
-    if entry.recommendations:
-        elements.append(Paragraph("Recommendations:", styles['Heading4']))
-        elements.append(Paragraph(entry.recommendations, styles['Normal']))
-    
-    if entry.user_notes:
-        elements.append(Paragraph("Patient Notes:", styles['Heading4']))
-        elements.append(Paragraph(entry.user_notes, styles['Normal']))
-    
-    elements.append(Spacer(1, 20))
-    return elements
+    return f"""
+\\section{{Summary}}
 
-def _format_mole_entry(entry: MoleEntry, styles) -> List:
-    elements = []
+\\begin{{tcolorbox}}[colback=lightgray, colframe=dermblue, title=Assessment Overview]
+This report contains a comprehensive analysis of {len(all_entries)} dermatological entries spanning from {oldest_entry.created_at.strftime('%B %d, %Y')} to {latest_entry.created_at.strftime('%B %d, %Y')}.
+
+\\begin{{itemize}}[leftmargin=1cm]
+\\item \\textbf{{Hairline Assessments:}} {len(hairline_entries)} entries
+\\item \\textbf{{Acne Assessments:}} {len(acne_entries)} entries  
+\\item \\textbf{{Mole Assessments:}} {len(mole_entries)} entries
+\\end{{itemize}}
+\\end{{tcolorbox}}
+
+\\newpage
+"""
+
+def _generate_hairline_section(hairline_entries: List) -> str:
+    section = "\\section{Hairline Assessment}\n\n"
     
-    elements.append(Paragraph(f"Entry Date: {entry.created_at.strftime('%B %d, %Y')}", styles['Heading3']))
-    elements.append(Paragraph(f"Sequence ID: {entry.sequence_id}", styles['Normal']))
+    for i, entry in enumerate(hairline_entries, 1):
+        entry_date = entry.created_at.strftime('%B %d, %Y at %I:%M %p')
+        
+        section += f"""
+\\subsection{{Entry {i} - {entry_date}}}
+
+\\begin{{tcolorbox}}[colback=white, colframe=dermblue, breakable]
+"""
+        
+        if entry.sequence_id:
+            section += f"\\textbf{{Sequence ID:}} {entry.sequence_id}\\\\\n"
+        
+        if entry.norwood_score:
+            section += f"\\textbf{{Norwood Score:}} {entry.norwood_score}\\\\\n"
+        
+        if entry.user_concerns:
+            section += f"\\textbf{{Patient Concerns:}} {_escape_latex(entry.user_concerns)}\\\\\n"
+        
+        if entry.user_notes:
+            section += f"\\textbf{{Patient Notes:}} {_escape_latex(entry.user_notes)}\\\\\n"
+        
+        if entry.ai_comments:
+            section += f"""
+\\vspace{{0.5cm}}
+\\textbf{{AI Analysis:}}
+\\begin{{quote}}
+\\textit{{{_escape_latex(entry.ai_comments)}}}
+\\end{{quote}}
+"""
+        
+        if entry.recommendations:
+            section += f"""
+\\vspace{{0.5cm}}
+\\textbf{{Recommendations:}}
+\\begin{{quote}}
+{_escape_latex(entry.recommendations)}
+\\end{{quote}}
+"""
+        
+        section += "\\end{tcolorbox}\n\\vspace{0.5cm}\n\n"
     
-    if entry.irregularities_detected is not None:
-        status = "Yes" if entry.irregularities_detected else "No"
-        elements.append(Paragraph(f"Irregularities Detected: {status}", styles['Normal']))
+    section += "\\newpage\n"
+    return section
+
+def _generate_acne_section(acne_entries: List) -> str:
+    section = "\\section{Acne Assessment}\n\n"
     
-    if entry.ai_comments:
-        elements.append(Paragraph("AI Analysis:", styles['Heading4']))
-        elements.append(Paragraph(entry.ai_comments, styles['Normal']))
+    for i, entry in enumerate(acne_entries, 1):
+        entry_date = entry.created_at.strftime('%B %d, %Y at %I:%M %p')
+        
+        section += f"""
+\\subsection{{Entry {i} - {entry_date}}}
+
+\\begin{{tcolorbox}}[colback=white, colframe=dermblue, breakable]
+"""
+        
+        if entry.sequence_id:
+            section += f"\\textbf{{Sequence ID:}} {entry.sequence_id}\\\\\n"
+        
+        if entry.severity_level:
+            section += f"\\textbf{{Severity Level:}} {entry.severity_level}\\\\\n"
+        
+        if entry.user_concerns:
+            section += f"\\textbf{{Patient Concerns:}} {_escape_latex(entry.user_concerns)}\\\\\n"
+        
+        if entry.user_notes:
+            section += f"\\textbf{{Patient Notes:}} {_escape_latex(entry.user_notes)}\\\\\n"
+        
+        if entry.ai_comments:
+            section += f"""
+\\vspace{{0.5cm}}
+\\textbf{{AI Analysis:}}
+\\begin{{quote}}
+\\textit{{{_escape_latex(entry.ai_comments)}}}
+\\end{{quote}}
+"""
+        
+        if entry.recommendations:
+            section += f"""
+\\vspace{{0.5cm}}
+\\textbf{{Recommendations:}}
+\\begin{{quote}}
+{_escape_latex(entry.recommendations)}
+\\end{{quote}}
+"""
+        
+        section += "\\end{tcolorbox}\n\\vspace{0.5cm}\n\n"
     
-    if entry.recommendations:
-        elements.append(Paragraph("Recommendations:", styles['Heading4']))
-        elements.append(Paragraph(entry.recommendations, styles['Normal']))
+    section += "\\newpage\n"
+    return section
+
+def _generate_mole_section(mole_entries: List) -> str:
+    section = "\\section{Mole Assessment}\n\n"
     
-    if entry.user_notes:
-        elements.append(Paragraph("Patient Notes:", styles['Heading4']))
-        elements.append(Paragraph(entry.user_notes, styles['Normal']))
+    for i, entry in enumerate(mole_entries, 1):
+        entry_date = entry.created_at.strftime('%B %d, %Y at %I:%M %p')
+        
+        section += f"""
+\\subsection{{Entry {i} - {entry_date}}}
+
+\\begin{{tcolorbox}}[colback=white, colframe=dermblue, breakable]
+"""
+        
+        if entry.sequence_id:
+            section += f"\\textbf{{Sequence ID:}} {entry.sequence_id}\\\\\n"
+        
+        if entry.irregularities_detected is not None:
+            status = "Yes" if entry.irregularities_detected else "No"
+            color = "red" if entry.irregularities_detected else "green"
+            section += f"\\textbf{{Irregularities Detected:}} \\textcolor{{{color}}}{{{status}}}\\\\\n"
+        
+        if entry.user_concerns:
+            section += f"\\textbf{{Patient Concerns:}} {_escape_latex(entry.user_concerns)}\\\\\n"
+        
+        if entry.user_notes:
+            section += f"\\textbf{{Patient Notes:}} {_escape_latex(entry.user_notes)}\\\\\n"
+        
+        if entry.ai_comments:
+            section += f"""
+\\vspace{{0.5cm}}
+\\textbf{{AI Analysis:}}
+\\begin{{quote}}
+\\textit{{{_escape_latex(entry.ai_comments)}}}
+\\end{{quote}}
+"""
+        
+        if entry.recommendations:
+            section += f"""
+\\vspace{{0.5cm}}
+\\textbf{{Recommendations:}}
+\\begin{{quote}}
+{_escape_latex(entry.recommendations)}
+\\end{{quote}}
+"""
+        
+        section += "\\end{tcolorbox}\n\\vspace{0.5cm}\n\n"
     
-    elements.append(Spacer(1, 20))
-    return elements
+    return section
+
+def _escape_latex(text: str) -> str:
+    """Escape special LaTeX characters."""
+    if not text:
+        return ""
+    
+    replacements = {
+        '&': '\\&',
+        '%': '\\%',
+        '$': '\\$',
+        '#': '\\#',
+        '^': '\\textasciicircum{}',
+        '_': '\\_',
+        '{': '\\{',
+        '}': '\\}',
+        '~': '\\textasciitilde{}',
+        '\\': '\\textbackslash{}'
+    }
+    
+    for char, replacement in replacements.items():
+        text = text.replace(char, replacement)
+    
+    return text

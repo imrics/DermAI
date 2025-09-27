@@ -301,22 +301,34 @@ async def get_all_entries(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Build query conditions
-    query_conditions = [Entry.user_id == user_id]
+    # Build base query conditions
+    base_conditions = {"user_id": user_id}
     
     if sequence_id:
-        query_conditions.append(Entry.sequence_id == sequence_id)
+        base_conditions["sequence_id"] = sequence_id
     
     if entry_type == "hairline":
-        entries = await HairlineEntry.find(*query_conditions).sort(-Entry.created_at).to_list()
+        entries = await HairlineEntry.find(base_conditions).sort(-HairlineEntry.created_at).to_list()
     elif entry_type == "acne":
-        entries = await AcneEntry.find(*query_conditions).sort(-Entry.created_at).to_list()
+        entries = await AcneEntry.find(base_conditions).sort(-AcneEntry.created_at).to_list()
     elif entry_type == "mole":
-        entries = await MoleEntry.find(*query_conditions).sort(-Entry.created_at).to_list()
+        entries = await MoleEntry.find(base_conditions).sort(-MoleEntry.created_at).to_list()
     else:
-        entries = await Entry.find(*query_conditions).sort(-Entry.created_at).to_list()
+        # Get all entry types when no specific type is requested
+        hairline_entries = await HairlineEntry.find({"user_id": user_id}).to_list()
+        acne_entries = await AcneEntry.find({"user_id": user_id}).to_list()
+        mole_entries = await MoleEntry.find({"user_id": user_id}).to_list()
+        
+        # Combine all entries and sort by created_at
+        entries = hairline_entries + acne_entries + mole_entries
+        entries.sort(key=lambda x: x.created_at, reverse=True)
+        
+        # Apply sequence_id filter if provided
+        if sequence_id:
+            entries = [e for e in entries if e.sequence_id == sequence_id]
     
     return entries
+
 @app.get(
     "/images/{image_id}",
     tags=["Entry Management"],
