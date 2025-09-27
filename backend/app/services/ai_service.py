@@ -120,6 +120,8 @@ def summarize_entry_for_prompt(e: Entry) -> str:
         parts.append(f"Prev AI comments: {e.ai_comments}")
     if e.recommendations:
         parts.append(f"Prev AI recommendations: {e.recommendations}")
+    if e.treatment:
+        parts.append(f"Prev AI treatment: {e.treatment}")
     return " | ".join(parts)
 
 async def build_timeline_payload(entry: Entry, analysis_type: str) -> Tuple[str, List[Dict[str, str]]]:
@@ -175,12 +177,14 @@ async def analyze_with_timeline(analysis_type: str, global_context: str, legend_
         {{
             "norwood_score": 2,
             "observations": "Describe current hairline pattern in 2-3 sentences, include trend across timeline",
-            "suggestions": "Provide care/styling suggestions and any trend-aware guidance"
+            "suggestions": "Provide care/styling suggestions and any trend-aware guidance",
+            "treatment": "Recommend specific treatments based on the Norwood stage"
         }}
 
         Context: {global_context}
 
         IMPORTANT NORWOOD SCALE GUIDELINES:
+        - Stage 0: No visible hair loss or recession
         - Stage 1: No visible hair loss or recession
         - Stage 2: Minimal recession at temples, forming mature hairline
         - Stage 3: Deeper temple recession, may have slight crown thinning
@@ -189,10 +193,18 @@ async def analyze_with_timeline(analysis_type: str, global_context: str, legend_
         - Stage 6: Crown and temple areas mostly bald with bridge of hair
         - Stage 7: Severe hair loss with only sides and back remaining
 
+        TREATMENT GUIDELINES BY NORWOOD STAGE:
+        - Stage 0-1: Castor oil, rosemary oil, scalp massage, biotin, vitamin D, zinc, omega-3 fatty acids
+        - Stage 2: Ketoconazole 1–2% shampoo, minoxidil oral 2.5 mg, minoxidil topical 5%, low-level laser therapy
+        - Stage 3: Finasteride 1 mg, minoxidil oral 2.5 mg, minoxidil topical 5%, microneedling
+        - Stage 4: Dutasteride 0.5 mg, minoxidil 2.5 mg, PRP injections, exosome therapy, stem-cell–derived therapies
+        - Stage 5-7: Dutasteride 0.5 mg, minoxidil 2.5 mg, hair transplant (FUE/FUT), scalp micropigmentation, wigs, hair systems
+
         REQUIREMENTS:
         - Be CONSERVATIVE in your estimates (choose lower stage when unsure)
         - Consider lighting and photo angle
         - Incorporate comparisons across the indexed images to note progression/regression
+        - Select appropriate treatments from the guidelines above based on the determined Norwood stage
         """
     elif analysis_type == "skin_texture":
         prompt = f"""
@@ -202,13 +214,22 @@ async def analyze_with_timeline(analysis_type: str, global_context: str, legend_
         {{
             "texture_level": "smooth",
             "observations": "Describe current texture in 2-3 sentences, include trend across timeline", 
-            "suggestions": "Provide general routine suggestions informed by trends"
+            "suggestions": "Provide general routine suggestions informed by trends",
+            "treatment": "Recommend specific acne treatments based on severity level"
         }}
 
         Context: {global_context}
 
         Focus on: skin texture, smoothness, overall appearance. Use texture_level values: "smooth", "textured", or "very_textured".
-        Emphasize changes over time using the indexed images.
+        
+        ACNE TREATMENT GUIDELINES BY SEVERITY:
+        - Mild (smooth to slightly textured): Benzoyl peroxide wash, salicylic acid cleansers, adapalene, tretinoin
+        - Moderate (textured): Oral antibiotics (doxycycline, minocycline, azithromycin), clindamycin + benzoyl peroxide gel, tazarotene
+        - Severe (very textured): Isotretinoin, oral contraceptives, spironolactone, chemical peels, laser therapy, microneedling
+
+        REQUIREMENTS:
+        - Emphasize changes over time using the indexed images
+        - Select appropriate treatments from the guidelines above based on the determined texture level/severity
         """
     else:  # skin_feature
         prompt = f"""
@@ -218,13 +239,23 @@ async def analyze_with_timeline(analysis_type: str, global_context: str, legend_
         {{
             "feature_regular": true,
             "observations": "Describe current feature characteristics in 2-3 sentences, include trend across timeline",
-            "suggestions": "Provide monitoring and care suggestions considering changes over time"
+            "suggestions": "Provide monitoring and care suggestions considering changes over time",
+            "treatment": "Recommend appropriate treatment based on feature characteristics"
         }}
 
         Context: {global_context}
 
         Focus on: feature shape, color uniformity, overall appearance. Use feature_regular as true for regular features, false for irregular.
-        Emphasize changes over time using the indexed images.
+        
+        MOLE/SKIN LESION TREATMENT GUIDELINES:
+        - Benign/Cosmetic (regular features): Shave excision, punch biopsy, laser ablation
+        - Suspicious (irregular features): Dermoscopy, punch biopsy, excisional biopsy, wide local excision, sentinel lymph node biopsy
+        - Cosmetic removal: Electrosurgery, radiofrequency ablation, plastic-surgical excision
+
+        REQUIREMENTS:
+        - Emphasize changes over time using the indexed images
+        - Select appropriate treatments from the guidelines above based on feature regularity assessment
+        - Always recommend professional consultation for suspicious features
         """
 
     try:
@@ -268,19 +299,22 @@ async def analyze_with_timeline(analysis_type: str, global_context: str, legend_
             return {
                 "norwood_score": 2,
                 "observations": "Unable to analyze hairline pattern with timeline at this time",
-                "suggestions": "Consider consulting a hair care professional for proper assessment"
+                "suggestions": "Consider consulting a hair care professional for proper assessment",
+                "treatment": "Ketoconazole 1–2% shampoo, minoxidil oral 2.5 mg, minoxidil topical 5%, low-level laser therapy"
             }
         elif analysis_type == "skin_texture":
             return {
                 "texture_level": "textured",
                 "observations": "Unable to analyze images with timeline at this time",
-                "suggestions": "Consider consulting a skincare professional"
+                "suggestions": "Consider consulting a skincare professional",
+                "treatment": "Oral antibiotics (doxycycline, minocycline, azithromycin), clindamycin + benzoyl peroxide gel, tazarotene"
             }
         else:
             return {
                 "feature_regular": True,
                 "observations": "Unable to analyze images with timeline at this time",
-                "suggestions": "Consider regular monitoring and professional consultation"
+                "suggestions": "Consider regular monitoring and professional consultation",
+                "treatment": "Dermoscopy, punch biopsy, excisional biopsy, wide local excision, sentinel lymph node biopsy"
             }
 
 async def analyze_image_generic(base64_image: str, analysis_type: str, context: str) -> Dict[str, Any]:
@@ -294,12 +328,14 @@ async def analyze_image_generic(base64_image: str, analysis_type: str, context: 
         {{
             "norwood_score": 2,
             "observations": "Describe the hairline recession pattern, temple areas, crown thinning, and overall hair density in 2-3 sentences",
-            "suggestions": "Provide hair care recommendations and styling suggestions based on the current pattern"
+            "suggestions": "Provide hair care recommendations and styling suggestions based on the current pattern",
+            "treatment": "Recommend specific treatments based on the Norwood stage"
         }}
         
         Context: {context}
         
         IMPORTANT NORWOOD SCALE GUIDELINES:
+        - Stage 0: No visible hair loss or recession
         - Stage 1: No visible hair loss or recession
         - Stage 2: Minimal recession at temples, forming mature hairline
         - Stage 3: Deeper temple recession, may have slight crown thinning
@@ -308,12 +344,20 @@ async def analyze_image_generic(base64_image: str, analysis_type: str, context: 
         - Stage 6: Crown and temple areas mostly bald with bridge of hair
         - Stage 7: Severe hair loss with only sides and back remaining
         
+        TREATMENT GUIDELINES BY NORWOOD STAGE:
+        - Stage 0-1: Castor oil, rosemary oil, scalp massage, biotin, vitamin D, zinc, omega-3 fatty acids
+        - Stage 2: Ketoconazole 1–2% shampoo, minoxidil oral 2.5 mg, minoxidil topical 5%, low-level laser therapy
+        - Stage 3: Finasteride 1 mg, minoxidil oral 2.5 mg, minoxidil topical 5%, microneedling
+        - Stage 4: Dutasteride 0.5 mg, minoxidil 2.5 mg, PRP injections, exosome therapy, stem-cell–derived therapies
+        - Stage 5-7: Dutasteride 0.5 mg, minoxidil 2.5 mg, hair transplant (FUE/FUT), scalp micropigmentation, wigs, hair systems
+        
         ANALYSIS REQUIREMENTS:
         - Be CONSERVATIVE in your estimates - when in doubt, choose the lower stage
         - Focus on: temple recession depth, crown thinning visibility, overall pattern
         - Consider lighting and photo angle that might make hair loss appear worse than it is
         - Err on the side of underestimating rather than overestimating hair loss
         - Provide the norwood_score as an integer from 1-7
+        - Select appropriate treatments from the guidelines above based on the determined Norwood stage
         """
         
     elif analysis_type == "skin_texture":
@@ -324,12 +368,21 @@ async def analyze_image_generic(base64_image: str, analysis_type: str, context: 
         {{
             "texture_level": "smooth",
             "observations": "Describe the skin texture and appearance in 2-3 sentences", 
-            "suggestions": "Provide general skincare routine suggestions"
+            "suggestions": "Provide general skincare routine suggestions",
+            "treatment": "Recommend specific acne treatments based on severity level"
         }}
         
         Context: {context}
         
         Focus on: skin texture, smoothness, overall appearance. Use texture_level values: "smooth", "textured", or "very_textured".
+        
+        ACNE TREATMENT GUIDELINES BY SEVERITY:
+        - Mild (smooth to slightly textured): Benzoyl peroxide wash, salicylic acid cleansers, adapalene, tretinoin
+        - Moderate (textured): Oral antibiotics (doxycycline, minocycline, azithromycin), clindamycin + benzoyl peroxide gel, tazarotene
+        - Severe (very textured): Isotretinoin, oral contraceptives, spironolactone, chemical peels, laser therapy, microneedling
+        
+        REQUIREMENTS:
+        - Select appropriate treatments from the guidelines above based on the determined texture level/severity
         """
         
     elif analysis_type == "skin_feature":
@@ -340,12 +393,22 @@ async def analyze_image_generic(base64_image: str, analysis_type: str, context: 
         {{
             "feature_regular": true,
             "observations": "Describe the skin feature characteristics in 2-3 sentences",
-            "suggestions": "Provide general monitoring and care suggestions"
+            "suggestions": "Provide general monitoring and care suggestions",
+            "treatment": "Recommend appropriate treatment based on feature characteristics"
         }}
         
         Context: {context}
         
         Focus on: feature shape, color uniformity, overall appearance. Use feature_regular as true for regular features, false for irregular.
+        
+        MOLE/SKIN LESION TREATMENT GUIDELINES:
+        - Benign/Cosmetic (regular features): Shave excision, punch biopsy, laser ablation
+        - Suspicious (irregular features): Dermoscopy, punch biopsy, excisional biopsy, wide local excision, sentinel lymph node biopsy
+        - Cosmetic removal: Electrosurgery, radiofrequency ablation, plastic-surgical excision
+        
+        REQUIREMENTS:
+        - Select appropriate treatments from the guidelines above based on feature regularity assessment
+        - Always recommend professional consultation for suspicious features
         """
     
     try:
@@ -385,19 +448,22 @@ async def analyze_image_generic(base64_image: str, analysis_type: str, context: 
             return {
                 "norwood_score": 2,
                 "observations": "Unable to analyze hairline pattern at this time",
-                "suggestions": "Consider consulting a hair care professional for proper assessment"
+                "suggestions": "Consider consulting a hair care professional for proper assessment",
+                "treatment": "Ketoconazole 1–2% shampoo, minoxidil oral 2.5 mg, minoxidil topical 5%, low-level laser therapy"
             }
         elif analysis_type == "skin_texture":
             return {
                 "texture_level": "textured",
                 "observations": "Unable to analyze image at this time",
-                "suggestions": "Consider consulting a skincare professional"
+                "suggestions": "Consider consulting a skincare professional",
+                "treatment": "Oral antibiotics (doxycycline, minocycline, azithromycin), clindamycin + benzoyl peroxide gel, tazarotene"
             }
         else:  # skin_feature
             return {
                 "feature_regular": True,
                 "observations": "Unable to analyze image at this time", 
-                "suggestions": "Consider regular monitoring and professional consultation"
+                "suggestions": "Consider regular monitoring and professional consultation",
+                "treatment": "Dermoscopy, punch biopsy, excisional biopsy, wide local excision, sentinel lymph node biopsy"
             }
 
 async def get_hairline_feedback(entry: HairlineEntry) -> Dict[str, Any]:
@@ -417,13 +483,15 @@ async def get_hairline_feedback(entry: HairlineEntry) -> Dict[str, Any]:
         mapped_result = {
             "Norwood": result.get("norwood_score", 2),
             "Comments": result.get("observations", "Hairline pattern analysis completed"),
-            "Recommendations": result.get("suggestions", "Consider consulting a hair care professional")
+            "Recommendations": result.get("suggestions", "Consider consulting a hair care professional"),
+            "Treatment": result.get("treatment", "Ketoconazole 1–2% shampoo, minoxidil oral 2.5 mg, minoxidil topical 5%, low-level laser therapy")
         }
         
         # Update entry with AI feedback
         entry.norwood_score = mapped_result["Norwood"]
         entry.ai_comments = mapped_result["Comments"]
         entry.recommendations = mapped_result["Recommendations"]
+        entry.treatment = mapped_result["Treatment"]
         await entry.save()
         
         return mapped_result
@@ -434,12 +502,14 @@ async def get_hairline_feedback(entry: HairlineEntry) -> Dict[str, Any]:
         fallback_result = {
             "Norwood": 2,
             "Comments": f"Hairline analysis unavailable: {str(e)}",
-            "Recommendations": "Please consult with a hair care professional for evaluation."
+            "Recommendations": "Please consult with a hair care professional for evaluation.",
+            "Treatment": "Ketoconazole 1–2% shampoo, minoxidil oral 2.5 mg, minoxidil topical 5%, low-level laser therapy"
         }
         
         entry.norwood_score = 2
         entry.ai_comments = fallback_result["Comments"]
         entry.recommendations = fallback_result["Recommendations"]
+        entry.treatment = fallback_result["Treatment"]
         await entry.save()
         
         return fallback_result
@@ -461,13 +531,15 @@ async def get_acne_feedback(entry: AcneEntry) -> Dict[str, Any]:
         mapped_result = {
             "SeverityLevel": result.get("texture_level", "textured").replace("very_textured", "severe").replace("textured", "moderate").replace("smooth", "mild"),
             "Comments": result.get("observations", "Skin texture analysis completed"),
-            "Recommendations": result.get("suggestions", "Consider consulting a skincare professional")
+            "Recommendations": result.get("suggestions", "Consider consulting a skincare professional"),
+            "Treatment": result.get("treatment", "Oral antibiotics (doxycycline, minocycline, azithromycin), clindamycin + benzoyl peroxide gel, tazarotene")
         }
         
         # Update entry with AI feedback
         entry.severity_level = mapped_result["SeverityLevel"]
         entry.ai_comments = mapped_result["Comments"]
         entry.recommendations = mapped_result["Recommendations"]
+        entry.treatment = mapped_result["Treatment"]
         await entry.save()
         
         return mapped_result
@@ -478,12 +550,14 @@ async def get_acne_feedback(entry: AcneEntry) -> Dict[str, Any]:
         fallback_result = {
             "SeverityLevel": "mild",
             "Comments": f"Image analysis unavailable: {str(e)}",
-            "Recommendations": "Please consult with a skincare professional for evaluation."
+            "Recommendations": "Please consult with a skincare professional for evaluation.",
+            "Treatment": "Benzoyl peroxide wash, salicylic acid cleansers, adapalene, tretinoin"
         }
         
         entry.severity_level = "mild"
         entry.ai_comments = fallback_result["Comments"]
         entry.recommendations = fallback_result["Recommendations"]
+        entry.treatment = fallback_result["Treatment"]
         await entry.save()
         
         return fallback_result
@@ -505,13 +579,15 @@ async def get_mole_feedback(entry: MoleEntry) -> Dict[str, Any]:
         mapped_result = {
             "IrregularitiesDetected": not result.get("feature_regular", True),
             "Comments": result.get("observations", "Skin feature analysis completed"),
-            "Recommendations": result.get("suggestions", "Consider regular monitoring and professional consultation")
+            "Recommendations": result.get("suggestions", "Consider regular monitoring and professional consultation"),
+            "Treatment": result.get("treatment", "Dermoscopy, punch biopsy, excisional biopsy, wide local excision, sentinel lymph node biopsy")
         }
         
         # Update entry with AI feedback
         entry.irregularities_detected = mapped_result["IrregularitiesDetected"]
         entry.ai_comments = mapped_result["Comments"]
         entry.recommendations = mapped_result["Recommendations"]
+        entry.treatment = mapped_result["Treatment"]
         await entry.save()
         
         return mapped_result
@@ -522,12 +598,14 @@ async def get_mole_feedback(entry: MoleEntry) -> Dict[str, Any]:
         fallback_result = {
             "IrregularitiesDetected": False,
             "Comments": f"Image analysis unavailable: {str(e)}",
-            "Recommendations": "Please consult with a professional for evaluation."
+            "Recommendations": "Please consult with a professional for evaluation.",
+            "Treatment": "Shave excision, punch biopsy, laser ablation"
         }
         
         entry.irregularities_detected = False
         entry.ai_comments = fallback_result["Comments"]
         entry.recommendations = fallback_result["Recommendations"]
+        entry.treatment = fallback_result["Treatment"]
         await entry.save()
         
         return fallback_result

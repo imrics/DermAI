@@ -39,6 +39,7 @@ class Entry(Document):
     photo_path: str
     ai_comments: Optional[str] = None
     recommendations: Optional[str] = None
+    treatment: Optional[str] = None
     user_notes: Optional[str] = None
     user_concerns: Optional[str] = None
     

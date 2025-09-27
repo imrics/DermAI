@@ -14,6 +14,7 @@ from app.models import (
 )
 from app.schemas import UserCreate, EntryCreate, MedicationCreate, MedicationUpdate
 from app.services.pdf_service import generate_user_report
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title="DermAI API",
@@ -53,6 +54,16 @@ app = FastAPI(
         "name": "MIT",
         "url": "https://opensource.org/licenses/MIT",
     },
+)
+
+# CORS: allow all origins, methods, and headers
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_origin_regex=".*",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.on_event("startup")
@@ -336,7 +347,20 @@ async def get_all_entries(
     description="Serve an entry image by its UUID without exposing user-specific paths."
 )
 async def get_image_by_id(image_id: str):
-    entry = await Entry.find_one(Entry.image_id == image_id)
+    # Search across all entry types since Entry is the base class
+    entry = None
+    
+    # Try to find in HairlineEntry first
+    entry = await HairlineEntry.find_one(HairlineEntry.image_id == image_id)
+    
+    # If not found, try AcneEntry
+    if not entry:
+        entry = await AcneEntry.find_one(AcneEntry.image_id == image_id)
+    
+    # If not found, try MoleEntry
+    if not entry:
+        entry = await MoleEntry.find_one(MoleEntry.image_id == image_id)
+    
     if not entry:
         raise HTTPException(status_code=404, detail="Image not found")
 
@@ -384,7 +408,29 @@ async def get_entry_sequences(user_id: str):
     description="Retrieve a specific entry by its ID."
 )
 async def get_entry(entry_id: str):
-    entry = await Entry.get(entry_id)
+    # Search across all entry types since Entry is the base class
+    entry = None
+    
+    # Try to find in HairlineEntry first
+    try:
+        entry = await HairlineEntry.get(entry_id)
+    except:
+        pass
+    
+    # If not found, try AcneEntry
+    if not entry:
+        try:
+            entry = await AcneEntry.get(entry_id)
+        except:
+            pass
+    
+    # If not found, try MoleEntry
+    if not entry:
+        try:
+            entry = await MoleEntry.get(entry_id)
+        except:
+            pass
+    
     if not entry:
         raise HTTPException(status_code=404, detail="Entry not found")
     return entry
@@ -411,6 +457,46 @@ async def export_user_pdf(user_id: str):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate PDF: {str(e)}")
+
+@app.get(
+    "/debug/database",
+    tags=["Debug"],
+    summary="View entire database",
+    description="Debug route to view all data in the database as JSON. Shows all users, entries, and medications."
+)
+async def debug_database():
+    try:
+        # Get all users
+        users = await User.find_all().to_list()
+        
+        # Get all entries (all types)
+        hairline_entries = await HairlineEntry.find_all().to_list()
+        acne_entries = await AcneEntry.find_all().to_list()
+        mole_entries = await MoleEntry.find_all().to_list()
+        
+        # Get all medications
+        medications = await Medication.find_all().to_list()
+        
+        return {
+            "database_snapshot": {
+                "users": users,
+                "entries": {
+                    "hairline": hairline_entries,
+                    "acne": acne_entries,
+                    "mole": mole_entries,
+                    "total_count": len(hairline_entries) + len(acne_entries) + len(mole_entries)
+                },
+                "medications": medications,
+                "summary": {
+                    "total_users": len(users),
+                    "total_entries": len(hairline_entries) + len(acne_entries) + len(mole_entries),
+                    "total_medications": len(medications),
+                    "collections": ["users", "entries", "medications"]
+                }
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve database data: {str(e)}")
 
 @app.get(
     "/",
