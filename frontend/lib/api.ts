@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 
-const API_BASE_URL = 'https://67a0fc5c8a02.ngrok-free.app';
+const API_BASE_URL = 'https://dermai-api.soos.dev';
 
 export type EntryType = 'hairline' | 'acne' | 'mole';
 export type MedicationCategory = 'hairline' | 'acne' | 'mole';
