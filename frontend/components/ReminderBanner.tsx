@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, View, Text, StyleSheet } from 'react-native';
-import { Warning, Radii, spacing, TextColors } from '@/constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { Warning, Radii, spacing } from '@/constants/theme';
 
 type Props = {
   message: string;
@@ -20,7 +21,15 @@ export default function ReminderBanner({ message, onPress }: Props) {
         onPress && pressed ? { opacity: 0.9 } : null,
       ]}
     >
-      <View style={styles.dot} />
+      {/* Transparent background; icon only */}
+      <Ionicons
+        name="camera-outline"
+        size={20}
+        color={Warning.text}
+        accessibilityLabel="Camera"
+        style={styles.icon}
+      />
+
       <Text style={styles.text} numberOfLines={2}>
         {message}
       </Text>
@@ -39,16 +48,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Warning.border,
   },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: Warning.text,
+  icon: {
     marginRight: spacing(1.5),
   },
   text: {
     flex: 1,
     fontSize: 14,
     color: Warning.text,
+    fontWeight: '600',
   },
 });

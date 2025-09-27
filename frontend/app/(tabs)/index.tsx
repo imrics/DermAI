@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import CardTile from '@/components/CardTile';
-import ReminderBanner from '../../components/ReminderBanner';
+import ReminderBanner from '@/components/ReminderBanner';
 import { AppGradient, CardColors, Fonts, spacing, TextColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getOverdueReminder, Reminder as ReminderType } from '../lib/reminders';
@@ -77,11 +77,9 @@ export default function HomeScreen() {
   // Build reminder message (uses mock days if provided)
   const reminderMessage =
     reminder &&
-    `Reminder: Log your ${reminder.title} update${
-      typeof reminder.lastUpdatedDays === 'number'
-        ? ` — last update ${reminder.lastUpdatedDays} days ago.`
-        : '.'
-    }`;
+    `Reminder: Log your ${reminder.title} update — last update was ${
+      typeof reminder.lastUpdatedDays === 'number' ? reminder.lastUpdatedDays : 45
+    } days ago.`;
 
   return (
     <LinearGradient colors={AppGradient[scheme ?? 'light']} style={{ flex: 1 }}>
@@ -117,7 +115,7 @@ export default function HomeScreen() {
 
           {/* Reminder banner (shows only if reminder exists) */}
           {reminderMessage && (
-            <View style={{ marginBottom: spacing(2) }}>
+            <View style={styles.reminderWrap}>
               <ReminderBanner
                 message={reminderMessage}
                 onPress={() => onPressTile(reminder!.id)}
@@ -127,8 +125,11 @@ export default function HomeScreen() {
 
           {/* Tiles grid with filtering */}
           <View style={styles.grid}>
-            {filtered.map((tile) => (
-              <View key={tile.id} style={styles.gridItem}>
+            {filtered.map((tile, index) => (
+              <View
+                key={tile.id}
+                style={[styles.gridItem, index < 2 && styles.gridItemFirstRow]}
+              >
                 <CardTile
                   title={tile.title}
                   subtitle={tile.subtitle}
@@ -180,8 +181,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
   },
 
+  reminderWrap: { marginBottom: spacing(1.5) },
+
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   gridItem: { flexBasis: '48%', maxWidth: '48%', marginTop: spacing(2) },
+  gridItemFirstRow: { marginTop: 0 },
 
   emptyText: { marginTop: spacing(2), fontSize: 14, color: TextColors.secondary },
 
