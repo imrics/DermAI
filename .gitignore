@@ -1,2 +1,4 @@
 /backend/app/__pycache__
 /backend/app/services/__pycache__
+/backend/entry_images
+backend/.env
