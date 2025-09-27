@@ -14,8 +14,8 @@ export default function TabsLayout() {
 
         tabBarStyle: {
           backgroundColor: 'transparent',
-          borderTopWidth: 0,      
-          elevation: 0, 
+          borderTopWidth: 0,
+          elevation: 0,
           height: 60,
           paddingBottom: 8,
           paddingTop: 8,
@@ -43,20 +43,20 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="calendar"
+        name="medications"
         options={{
-          title: 'Calendar',
+          title: 'Medications',
           tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={size} color={color} />
+            <Ionicons name={focused ? 'medkit' : 'medkit-outline'} size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="exports"
+        name="export"
         options={{
-          title: 'Exports',
+          title: 'Export',
           tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? 'folder' : 'folder-outline'} size={size} color={color} />
+            <Ionicons name={focused ? 'share' : 'share-outline'} size={size} color={color} />
           ),
         }}
       />
