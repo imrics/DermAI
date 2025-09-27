@@ -18,25 +18,33 @@ export default function CardTile({ title, subtitle, bg, onPress, testID, icon }:
       accessibilityRole="button"
       accessibilityLabel={title}
       testID={testID}
-      style={({ pressed }) => [styles.card, { backgroundColor: bg, opacity: pressed ? 0.95 : 1 }]}
+      style={({ pressed }) => [
+        styles.card,
+        { backgroundColor: bg, opacity: pressed ? 0.95 : 1 },
+      ]}
     >
       <View style={styles.iconWrap}>{icon}</View>
-      <Text style={styles.title}>{title}</Text>
-      {!!subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+      <Text style={styles.title} numberOfLines={1}>{title}</Text>
+      {!!subtitle && <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
+    // ✅ Fill whatever width the parent gives us
+    width: '100%',
+    minHeight: 160,
+
     padding: spacing(2.5),
     borderRadius: Radii.lg,
-    width: '48%',
-    height: 140,
+
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
+
+    justifyContent: 'flex-start',
   },
   iconWrap: {
     width: 36, height: 36, borderRadius: 12,
@@ -47,4 +55,3 @@ const styles = StyleSheet.create({
   title: { fontSize: 18, fontWeight: '800', color: TextColors.primary },
   subtitle: { marginTop: spacing(0.75), fontSize: 12, color: TextColors.secondary },
 });
-

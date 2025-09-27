@@ -12,9 +12,16 @@ const tintColorDark = '#fff';
 const appGradientStart = '#F4F1FF';
 const appGradientEnd   = '#F8F5FF';
 
+export const Warning = {
+  bg: '#FDECEC',        // soft red background
+  text: '#8A1C1C',      // neutral/dim red for text
+  border: '#F6CACA',    // subtle border
+};
+
 export const CardColors = {
   norwood: '#FFE4CC',
   acne:    '#E7E3FF',
+  skin:    '#E7E3FF',
   moles:   '#DDF3FF',
 };
 
