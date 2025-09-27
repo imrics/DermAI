@@ -7,6 +7,29 @@ import { Platform } from 'react-native';
 
 const tintColorLight = '#0a7ea4';
 const tintColorDark = '#fff';
+// constants/theme.ts (add near the top or extend existing Colors export)
+
+const appGradientStart = '#F4F1FF';
+const appGradientEnd   = '#F8F5FF';
+
+export const CardColors = {
+  norwood: '#FFE4CC',
+  acne:    '#E7E3FF',
+  moles:   '#DDF3FF',
+};
+
+export const TextColors = {
+  primary: '#1C1C1E',
+  secondary: '#6B7280',
+};
+
+export const Radii = { sm: 12, md: 16, lg: 24, xl: 32 };
+export const spacing = (n: number) => n * 8;
+
+export const AppGradient = {
+  light: [appGradientStart, appGradientEnd] as const,
+  dark: ['#111827', '#0B1220'] as const, // optional dark mode
+};
 
 export const Colors = {
   light: {

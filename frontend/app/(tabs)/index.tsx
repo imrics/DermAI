@@ -1,98 +1,104 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import React from 'react';
+import { SafeAreaView, View, Text, StyleSheet, TextInput, Image, ScrollView } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import CardTile from '@/components/CardTile';
+import { AppGradient, CardColors, Fonts, spacing, TextColors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Link } from 'expo-router';
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const scheme = useColorScheme();
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  return (
+    <LinearGradient colors={AppGradient[scheme ?? 'light']} style={{ flex: 1 }}>
+      <SafeAreaView style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.container}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Image
+              source={{ uri: 'https://i.pravatar.cc/100' }}
+              style={styles.avatar}
+              accessibilityIgnoresInvertColors
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.hello}>Hello,</Text>
+              <Text style={styles.name}>Alicia Wins 👋</Text>
+            </View>
+            <View accessible accessibilityLabel="Menu" style={styles.menuDot} />
+          </View>
+
+          {/* Search */}
+          <View style={styles.searchWrap}>
+            <TextInput
+              placeholder="Search for a doctor"
+              placeholderTextColor="#9CA3AF"
+              style={styles.search}
+              accessibilityLabel="Search for a doctor"
+              returnKeyType="search"
+            />
+          </View>
+
+          {/* Primary tiles */}
+          <View style={styles.tileRow}>
+            <CardTile
+              title="Norwood"
+              subtitle="Track hairline"
+              bg={CardColors.norwood}
+              onPress={() => {/* navigation later: router.push('/capture?condition=norwood') */}}
+              testID="tile-norwood"
+            />
+            <CardTile
+              title="Acne"
+              subtitle="Face progress"
+              bg={CardColors.acne}
+              onPress={() => {/* router.push('/capture?condition=acne') */}}
+              testID="tile-acne"
+            />
+          </View>
+
+          <View style={styles.tileRow}>
+            <CardTile
+              title="Moles"
+              subtitle="Check changes"
+              bg={CardColors.moles}
+              onPress={() => {/* router.push('/capture?condition=mole') */}}
+              testID="tile-moles"
+            />
+            <View style={{ width: '48%' }} />
+          </View>
+
+          {/* Disclaimer */}
+          <Text style={styles.disclaimer}>
+            This app provides educational information and progress tracking. It does not diagnose
+            conditions. Please consult a licensed clinician for medical advice.
+          </Text>
+
+          {/* (Optional) Temporary link to a modal to prove routing still works */}
+          <Link href="/modal" style={styles.hiddenLink} accessibilityLabel="Open modal">
+            {/* invisible helper link for dev */}
+          </Link>
+        </ScrollView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: { padding: spacing(2) },
+  header: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing(2) },
+  avatar: { width: 44, height: 44, borderRadius: 22, marginRight: spacing(1.5) },
+  hello: { fontSize: 16, color: TextColors.secondary, fontFamily: Fonts?.sans },
+  name: { fontSize: 28, fontWeight: '800', color: TextColors.primary, fontFamily: Fonts?.rounded },
+  menuDot: { width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.08)', marginLeft: spacing(1) },
+
+  searchWrap: { marginVertical: spacing(2) },
+  search: {
+    backgroundColor: '#FFFFFF', borderRadius: 16, paddingHorizontal: 16, height: 48,
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
+
+  tileRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing(2) },
+
+  disclaimer: { marginTop: spacing(3), fontSize: 12, color: TextColors.secondary, lineHeight: 16 },
+  hiddenLink: { width: 1, height: 1, opacity: 0 },
 });
