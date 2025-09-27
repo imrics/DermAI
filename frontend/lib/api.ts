@@ -110,21 +110,33 @@ function normalizeEntrySummary(raw: any): EntrySummary {
   }
 
   const entry: any = { ...raw };
-  entry.entry_id = entry.entry_id ?? entry.id ?? entry.entryId ?? entry.entryID;
-  entry.entry_type = entry.entry_type ?? entry.type ?? entry.entryType ?? entry.condition ?? 'hairline';
+  const entryType =
+    entry.entry_type ?? entry.type ?? entry.entryType ?? entry.condition ?? 'hairline';
+
+  let entryId = entry._id ?? entry.entry_id ?? entry.id ?? entry.entryId ?? entry.entryID;
+
+  if (typeof entryId === 'number') {
+    entryId = String(entryId);
+  }
+
+  if (typeof entryId === 'string') {
+    const trimmed = entryId.trim();
+    const prefix = `${entryType}-`;
+    entryId = trimmed.startsWith(prefix) ? trimmed.slice(prefix.length) : trimmed;
+  }
+
+  if (!entryId) {
+    entryId = String(Date.now());
+  }
+
+  entry.entry_id = entryId;
+  entry._id = entry._id ?? entryId;
+  entry.entry_type = entryType;
   entry.created_at = entry.created_at ?? entry.createdAt ?? new Date().toISOString();
   entry.sequence_id = entry.sequence_id ?? entry.sequenceId ?? null;
   entry.image_id = entry.image_id ?? entry.imageId ?? entry.photo_id ?? null;
   entry.photo_url = entry.photo_url ?? entry.photoUrl ?? null;
   entry.summary = entry.summary ?? entry.ai_summary ?? entry.user_notes ?? null;
-
-  if (!entry.entry_id) {
-    entry.entry_id = `${entry.entry_type ?? 'entry'}-${Date.now()}`;
-  }
-
-  if (!entry.created_at) {
-    entry.created_at = new Date().toISOString();
-  }
 
   return entry as EntrySummary;
 }
@@ -133,7 +145,6 @@ function normalizeEntryDetail(raw: any): EntryDetail {
   if (raw && typeof raw === 'object' && 'entry' in raw) {
     return normalizeEntryDetail((raw as { entry: any }).entry);
   }
-
   const entry = normalizeEntrySummary(raw ?? {});
   const detail: any = { ...raw, ...entry };
   detail.analysis = detail.analysis ?? detail.details ?? null;
