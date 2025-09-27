@@ -1,63 +1,59 @@
 import React from 'react';
-import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { AppGradient } from '@/constants/theme';
+import { withLayoutContext } from 'expo-router';
+import { Platform } from 'react-native';
+import {
+  createNativeBottomTabNavigator,
+  NativeBottomTabNavigationOptions,
+  NativeBottomTabNavigationEventMap,
+} from '@bottom-tabs/react-navigation';
+import { ParamListBase, TabNavigationState } from '@react-navigation/native';
+
+const BottomTabNavigator = createNativeBottomTabNavigator().Navigator;
+
+const Tabs = withLayoutContext<
+  NativeBottomTabNavigationOptions,
+  typeof BottomTabNavigator,
+  TabNavigationState<ParamListBase>,
+  NativeBottomTabNavigationEventMap
+>(BottomTabNavigator);
 
 export default function TabsLayout() {
   return (
     <Tabs
+      // iOS 26 specific features
+      minimizeBehavior={Platform.OS === 'ios' ? 'automatic' : undefined}
+      translucent={Platform.OS === 'ios'}
       screenOptions={{
-        headerShown: false,
-        tabBarHideOnKeyboard: true,
-
-        tabBarStyle: {
-          backgroundColor: 'transparent',
-          borderTopWidth: 0,
-          elevation: 0,
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 8,
-        },
-
-        tabBarBackground: () => (
-          <LinearGradient
-            colors={AppGradient.light}
-            style={StyleSheet.absoluteFill}
-          />
-        ),
-
-        tabBarActiveTintColor: '#1C7CF6',
-        tabBarInactiveTintColor: '#9CA3AF',
-        tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
+        // Native tab styling 
+        tabBarActiveTintColor: '#007AFF',
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? 'home' : 'home-outline'} size={size} color={color} />
-          ),
+          // Native tabs use SF Symbols on iOS
+          tabBarIcon: ({ focused }) => ({
+            sfSymbol: focused ? 'house.fill' : 'house',
+          }),
         }}
       />
       <Tabs.Screen
         name="medications"
         options={{
           title: 'Medications',
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? 'medkit' : 'medkit-outline'} size={size} color={color} />
-          ),
+          tabBarIcon: ({ focused }) => ({
+            sfSymbol: focused ? 'cross.case.fill' : 'cross.case',
+          }),
         }}
       />
       <Tabs.Screen
         name="export"
         options={{
-          title: 'Export',
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? 'share' : 'share-outline'} size={size} color={color} />
-          ),
+          title: 'Export',  
+          tabBarIcon: ({ focused }) => ({
+            sfSymbol: focused ? 'square.and.arrow.up.fill' : 'square.and.arrow.up',
+          }),
         }}
       />
     </Tabs>
