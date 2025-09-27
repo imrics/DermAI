@@ -10,10 +10,10 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import CardTile from '@/components/CardTile';
-import ReminderBanner from '@/components/Reminder';
+import ReminderBanner from '../../components/ReminderBanner';
 import { AppGradient, CardColors, Fonts, spacing, TextColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { getOverdueReminder, Reminder as ReminderType } from '@/app/lib/reminders';
+import { getOverdueReminder, Reminder as ReminderType } from '../lib/reminders';
 
 type TileId = 'norwood' | 'skin' | 'moles';
 

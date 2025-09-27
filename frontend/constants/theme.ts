@@ -1,21 +1,14 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
-
 import { Platform } from 'react-native';
 
 const tintColorLight = '#0a7ea4';
 const tintColorDark = '#fff';
-// constants/theme.ts (add near the top or extend existing Colors export)
-
 const appGradientStart = '#F4F1FF';
 const appGradientEnd   = '#F8F5FF';
 
 export const Warning = {
-  bg: '#FDECEC',        // soft red background
-  text: '#8A1C1C',      // neutral/dim red for text
-  border: '#F6CACA',    // subtle border
+  bg: '#FDECEC',        
+  text: '#8A1C1C',
+  border: '#F6CACA',
 };
 
 export const CardColors = {
