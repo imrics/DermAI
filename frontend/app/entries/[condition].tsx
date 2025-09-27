@@ -23,6 +23,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { SwipeListView } from 'react-native-swipe-list-view';
+import { BlurView } from 'expo-blur';
 
 import {
   CreateEntryPayload,
@@ -240,26 +241,54 @@ export default function ConditionEntriesScreen() {
       title: conditionConfig.title,
       headerBackTitle: 'Home',
       headerBackTitleVisible: true,
-      headerLeft: () => (
-        <TouchableOpacity style={styles.headerBack} onPress={handleBack}>
-          <Ionicons name="chevron-back" size={18} color={TextColors.primary} />
-        </TouchableOpacity>
-      ),
-      headerRight: () => (
-        <TouchableOpacity
-          onPress={handleNewEntry}
-          disabled={uploading}
-          style={[styles.headerIconButton, uploading && styles.headerButtonDisabled]}
-          accessibilityRole="button"
-          accessibilityLabel="Add entry"
-        >
-          {uploading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Ionicons name="add" size={22} color="#fff" />
-          )}
-        </TouchableOpacity>
-      ),
+      headerLeft: () =>
+        Platform.OS === 'ios' ? (
+          <View style={styles.headerIconContainer}>
+            <BlurView intensity={80} tint="light" style={styles.headerIconBlur}>
+              <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+                <Ionicons name="chevron-back" size={24} color={TextColors.primary} />
+              </TouchableOpacity>
+            </BlurView>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.headerBack} onPress={handleBack}>
+            <Ionicons name="chevron-back" size={24} color={TextColors.primary} />
+          </TouchableOpacity>
+        ),
+      headerRight: () =>
+        Platform.OS === 'ios' ? (
+          <View style={styles.headerIconContainer}>
+            <BlurView intensity={80} tint="light" style={styles.headerIconBlur}>
+              <TouchableOpacity
+                onPress={handleNewEntry}
+                disabled={uploading}
+                style={[styles.headerButton, uploading && styles.headerButtonDisabled]}
+                accessibilityRole="button"
+                accessibilityLabel="Add entry"
+              >
+                {uploading ? (
+                  <ActivityIndicator color={TextColors.primary} />
+                ) : (
+                  <Ionicons name="add-sharp" size={26} color={TextColors.primary} />
+                )}
+              </TouchableOpacity>
+            </BlurView>
+          </View>
+        ) : (
+          <TouchableOpacity
+            onPress={handleNewEntry}
+            disabled={uploading}
+            style={[styles.headerIconButton, uploading && styles.headerButtonDisabled]}
+            accessibilityRole="button"
+            accessibilityLabel="Add entry"
+          >
+            {uploading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Ionicons name="add-sharp" size={28} color="#fff" />
+            )}
+          </TouchableOpacity>
+        ),
     });
   }, [conditionConfig, handleBack, handleNewEntry, isValidCondition, navigation, uploading]);
 
@@ -471,6 +500,23 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 4 },
+  },
+  headerIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerIconBlur: {
+    width: '100%',
+    height: '100%',
+  },
+  headerButton: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerBack: {
     width: 36,
