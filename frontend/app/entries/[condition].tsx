@@ -21,9 +21,9 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
-import { Ionicons } from '@expo/vector-icons';
 import { SwipeListView } from 'react-native-swipe-list-view';
-import { BlurView } from 'expo-blur';
+import { HeaderButton } from '@react-navigation/elements';
+import { SymbolView } from 'expo-symbols';
 
 import {
   CreateEntryPayload,
@@ -241,54 +241,39 @@ export default function ConditionEntriesScreen() {
       title: conditionConfig.title,
       headerBackTitle: 'Home',
       headerBackTitleVisible: true,
-      headerLeft: () =>
-        Platform.OS === 'ios' ? (
-          <View style={styles.headerIconContainer}>
-            <BlurView intensity={80} tint="light" style={styles.headerIconBlur}>
-              <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
-                <Ionicons name="chevron-back" size={24} color={TextColors.primary} />
-              </TouchableOpacity>
-            </BlurView>
-          </View>
-        ) : (
-          <TouchableOpacity style={styles.headerBack} onPress={handleBack}>
-            <Ionicons name="chevron-back" size={24} color={TextColors.primary} />
-          </TouchableOpacity>
-        ),
-      headerRight: () =>
-        Platform.OS === 'ios' ? (
-          <View style={styles.headerIconContainer}>
-            <BlurView intensity={80} tint="light" style={styles.headerIconBlur}>
-              <TouchableOpacity
-                onPress={handleNewEntry}
-                disabled={uploading}
-                style={[styles.headerButton, uploading && styles.headerButtonDisabled]}
-                accessibilityRole="button"
-                accessibilityLabel="Add entry"
-              >
-                {uploading ? (
-                  <ActivityIndicator color={TextColors.primary} />
-                ) : (
-                  <Ionicons name="add-sharp" size={26} color={TextColors.primary} />
-                )}
-              </TouchableOpacity>
-            </BlurView>
-          </View>
-        ) : (
-          <TouchableOpacity
-            onPress={handleNewEntry}
-            disabled={uploading}
-            style={[styles.headerIconButton, uploading && styles.headerButtonDisabled]}
-            accessibilityRole="button"
-            accessibilityLabel="Add entry"
-          >
-            {uploading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Ionicons name="add-sharp" size={28} color="#fff" />
-            )}
-          </TouchableOpacity>
-        ),
+      headerLeft: () => (
+        <HeaderButton
+          onPress={handleBack}
+          accessibilityLabel="Go back"
+          tintColor={TextColors.primary}
+        >
+          <SymbolView
+            name="chevron.left"
+            size={20}
+            type="hierarchical"
+            tintColor={TextColors.primary}
+          />
+        </HeaderButton>
+      ),
+      headerRight: () => (
+        <HeaderButton
+          onPress={handleNewEntry}
+          disabled={uploading}
+          accessibilityLabel="Add entry"
+          tintColor={TextColors.primary}
+        >
+          {uploading ? (
+            <ActivityIndicator size="small" color={TextColors.primary} />
+          ) : (
+            <SymbolView
+              name="plus"
+              size={20}
+              type="hierarchical"
+              tintColor={TextColors.primary}
+            />
+          )}
+        </HeaderButton>
+      ),
     });
   }, [conditionConfig, handleBack, handleNewEntry, isValidCondition, navigation, uploading]);
 
@@ -360,7 +345,12 @@ export default function ConditionEntriesScreen() {
           style={styles.deleteButton}
           onPress={() => handleDeleteEntry(data.item)}
         >
-          <Ionicons name="trash" size={20} color="#fff" />
+          <SymbolView
+            name="trash"
+            size={20}
+            type="hierarchical"
+            tintColor="#fff"
+          />
         </TouchableOpacity>
       </View>
     ),
@@ -489,45 +479,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignSelf: 'center',
   },
-  headerIconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#4F46E5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#4F46E5',
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 4 },
-  },
-  headerIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    overflow: 'hidden',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerIconBlur: {
-    width: '100%',
-    height: '100%',
-  },
-  headerButton: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerBack: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  headerButtonDisabled: {
-    opacity: 0.6,
-  },
+
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',

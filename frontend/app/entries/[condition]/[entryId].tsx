@@ -5,14 +5,13 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 // FIX: get the runtime header height (handles large-title iOS navbars)
-import { useHeaderHeight } from '@react-navigation/elements';
+import { HeaderButton, useHeaderHeight } from '@react-navigation/elements';
+import { SymbolView } from 'expo-symbols';
 
 import { EntryDetail, getEntry, getImageUrl } from '@/lib/api';
 import { spacing, TextColors } from '@/constants/theme';
@@ -158,7 +157,7 @@ export default function EntryDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const accentColor = useMemo(() => '#F8F5FE', [entry?.entry_type, params.condition]);
+  const accentColor = useMemo(() => '#F8F5FE', []);
   const pageBackground = accentColor;
 
   const handleBack = useCallback(() => {
@@ -200,9 +199,18 @@ export default function EntryDetailScreen() {
         headerLargeTitle: true,
         headerBackground: () => <View style={{ flex: 1, backgroundColor: accentColor }} />,
         headerLeft: () => (
-          <TouchableOpacity style={styles.headerBackButton} onPress={handleBack}>
-            <Ionicons name="chevron-back" size={18} color={TextColors.primary} />
-          </TouchableOpacity>
+          <HeaderButton
+            onPress={handleBack}
+            accessibilityLabel="Go back"
+            tintColor={TextColors.primary}
+          >
+            <SymbolView
+              name="chevron.left"
+              size={18}
+              type="hierarchical"
+              tintColor={TextColors.primary}
+            />
+          </HeaderButton>
         ),
       });
     }
@@ -518,7 +526,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing(0.5),
   },
   secondaryBody: { fontSize: 16, lineHeight: 24, color: TextColors.primary },
-  headerBackButton: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing(4), backgroundColor: '#F3F4F6' },
   errorText: { fontSize: 15, color: '#B91C1C', textAlign: 'center' },
 });
