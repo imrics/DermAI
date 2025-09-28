@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -69,7 +70,7 @@ function formatDateForTile(timestamp?: string) {
 export default function HomeScreen() {
   const scheme = useColorScheme();
   const router = useRouter();
-  const { user } = useUser();
+  const { user, signOut } = useUser();
 
   const [query, setQuery] = useState('');
   const [reminder, setReminder] = useState<ReminderType | null>(null);
@@ -78,6 +79,7 @@ export default function HomeScreen() {
     skin: buildDefaultSummary(),
     moles: buildDefaultSummary(),
   });
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const tiles: Tile[] = useMemo(
     () => [
@@ -187,6 +189,19 @@ export default function HomeScreen() {
     }, [tiles, user]),
   );
 
+  const handleSignOut = useCallback(async () => {
+    if (loggingOut) return;
+    try {
+      setLoggingOut(true);
+      await signOut();
+      router.replace('/onboarding');
+    } catch (error) {
+      console.warn('Failed to sign out', error);
+    } finally {
+      setLoggingOut(false);
+    }
+  }, [loggingOut, router, signOut]);
+
   const handlePressTile = (id: TileId) => {
     router.push(`/entries/${id}`);
   };
@@ -212,9 +227,20 @@ export default function HomeScreen() {
               <Text style={styles.hello}>Good day,</Text>
               <Text style={styles.name}>{getFirstName(user?.name ?? 'DermAI')}</Text>
             </View>
-            <View accessible accessibilityLabel="Profile" style={styles.profileBadge}>
-              <Text style={styles.profileBadgeText}>Demo</Text>
-            </View>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Log out"
+              onPress={handleSignOut}
+              disabled={loggingOut}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              style={[styles.profileBadge, loggingOut && styles.profileBadgeDisabled]}
+            >
+              {loggingOut ? (
+                <ActivityIndicator size="small" color="#4F46E5" />
+              ) : (
+                <Text style={styles.profileBadgeText}>Log out</Text>
+              )}
+            </TouchableOpacity>
           </View>
 
           <Text style={styles.headline}>Where should we focus today?</Text>
@@ -300,7 +326,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing(0.75),
     borderRadius: 20,
     backgroundColor: '#EEF2FF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  profileBadgeDisabled: { opacity: 0.6 },
   profileBadgeText: {
     fontSize: 12,
     fontWeight: '700',

@@ -26,6 +26,10 @@ export interface EntrySummary {
   photo_url?: string | null;
   summary?: string | null;
   ai_summary?: string | null;
+  ai_comments?: string | null;
+  recommendations?: string | null;
+  treatment?: string[] | null;
+  norwood_score?: number | null;
   user_notes?: string | null;
   user_concerns?: string | null;
   [key: string]: unknown;
@@ -136,7 +140,103 @@ function normalizeEntrySummary(raw: any): EntrySummary {
   entry.sequence_id = entry.sequence_id ?? entry.sequenceId ?? null;
   entry.image_id = entry.image_id ?? entry.imageId ?? entry.photo_id ?? null;
   entry.photo_url = entry.photo_url ?? entry.photoUrl ?? null;
-  entry.summary = entry.summary ?? entry.ai_summary ?? entry.user_notes ?? null;
+
+  const aiCommentsSource =
+    entry.ai_comments ??
+    entry.aiComments ??
+    entry.ai_comment ??
+    entry.aiComment ??
+    null;
+
+  let aiComments: string | null = null;
+  if (typeof aiCommentsSource === 'string') {
+    aiComments = aiCommentsSource;
+  } else if (Array.isArray(aiCommentsSource)) {
+    aiComments = aiCommentsSource
+      .map((item) => (typeof item === 'string' ? item.trim() : String(item)))
+      .filter((item) => item.length > 0)
+      .join(' ');
+  } else if (aiCommentsSource != null) {
+    aiComments = String(aiCommentsSource);
+  }
+  entry.ai_comments = aiComments;
+
+  if (
+    (!entry.ai_summary || (typeof entry.ai_summary === 'string' && entry.ai_summary.trim().length === 0)) &&
+    typeof entry.ai_comments === 'string' &&
+    entry.ai_comments.trim().length > 0
+  ) {
+    entry.ai_summary = entry.ai_comments;
+  }
+
+  const recommendationSource =
+    entry.recommendations ??
+    entry.recommendation ??
+    entry.recommendation_text ??
+    entry.recommendationText ??
+    null;
+
+  let recommendations: string | null = null;
+  if (typeof recommendationSource === 'string') {
+    recommendations = recommendationSource;
+  } else if (Array.isArray(recommendationSource)) {
+    recommendations = recommendationSource
+      .map((item) => (typeof item === 'string' ? item.trim() : String(item)))
+      .filter((item) => item.length > 0)
+      .join(' ');
+  } else if (recommendationSource != null) {
+    recommendations = String(recommendationSource);
+  }
+  entry.recommendations = recommendations;
+
+  const treatmentSource =
+    entry.treatment ??
+    entry.treatments ??
+    entry.recommended_treatments ??
+    entry.recommendedTreatments ??
+    null;
+
+  let normalizedTreatment: string[] | null = null;
+  if (Array.isArray(treatmentSource)) {
+    normalizedTreatment = treatmentSource
+      .map((item) => (typeof item === 'string' ? item.trim() : String(item)))
+      .filter((item) => item.length > 0);
+  } else if (typeof treatmentSource === 'string') {
+    normalizedTreatment = treatmentSource
+      .split(/\r?\n|;|,/)
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+  }
+  entry.treatment = normalizedTreatment;
+
+  const norwoodSource = entry.norwood_score ?? entry.norwoodScore ?? entry.norwood_stage ?? null;
+  let norwoodScore: number | null = null;
+  if (typeof norwoodSource === 'number' && Number.isFinite(norwoodSource)) {
+    norwoodScore = norwoodSource;
+  } else if (typeof norwoodSource === 'string') {
+    const match = norwoodSource.match(/\d+(?:\.\d+)?/);
+    if (match) {
+      const parsed = Number(match[0]);
+      if (Number.isFinite(parsed)) {
+        norwoodScore = parsed;
+      }
+    }
+  }
+  entry.norwood_score = norwoodScore;
+
+  const summaryCandidates = [
+    entry.summary,
+    entry.ai_summary,
+    entry.ai_comments,
+    entry.recommendations,
+    entry.user_notes,
+  ];
+
+  const normalizedSummary = summaryCandidates.find(
+    (value) => typeof value === 'string' && value.trim().length > 0,
+  );
+
+  entry.summary = normalizedSummary ? (normalizedSummary as string) : null;
 
   return entry as EntrySummary;
 }
