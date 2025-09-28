@@ -218,7 +218,8 @@ async def create_hairline_entry(
     photo: UploadFile = File(..., description="Photo of hairline for analysis"),
     sequence_id: Optional[str] = Form(None, description="Link to existing sequence for progress tracking"),
     user_notes: Optional[str] = Form(None, description="User's notes about current condition"),
-    user_concerns: Optional[str] = Form(None, description="User's specific concerns")
+    user_concerns: Optional[str] = Form(None, description="User's specific concerns"),
+    created_at: Optional[datetime] = Form(None, description="Custom timestamp for the entry (defaults to current time if not provided)")
 ):
     user = await User.find_one(User.user_id == user_id)
     if not user:
@@ -232,7 +233,8 @@ async def create_hairline_entry(
         image_ext=image_ext,
         photo_path=photo_path,
         user_notes=user_notes,
-        user_concerns=user_concerns
+        user_concerns=user_concerns,
+        created_at=created_at if created_at is not None else datetime.utcnow()
     )
     
     if sequence_id:
@@ -258,7 +260,8 @@ async def create_acne_entry(
     photo: UploadFile = File(..., description="Photo of acne condition for analysis"),
     sequence_id: Optional[str] = Form(None, description="Link to existing sequence for progress tracking"),
     user_notes: Optional[str] = Form(None, description="User's notes about current condition"),
-    user_concerns: Optional[str] = Form(None, description="User's specific concerns")
+    user_concerns: Optional[str] = Form(None, description="User's specific concerns"),
+    created_at: Optional[datetime] = Form(None, description="Custom timestamp for the entry (defaults to current time if not provided)")
 ):
     user = await User.find_one(User.user_id == user_id)
     if not user:
@@ -272,7 +275,8 @@ async def create_acne_entry(
         image_ext=image_ext,
         photo_path=photo_path,
         user_notes=user_notes,
-        user_concerns=user_concerns
+        user_concerns=user_concerns,
+        created_at=created_at if created_at is not None else datetime.utcnow()
     )
     
     if sequence_id:
@@ -298,7 +302,8 @@ async def create_mole_entry(
     photo: UploadFile = File(..., description="Photo of mole for irregularity analysis"),
     sequence_id: Optional[str] = Form(None, description="Link to existing sequence for progress tracking"),
     user_notes: Optional[str] = Form(None, description="User's notes about current condition"),
-    user_concerns: Optional[str] = Form(None, description="User's specific concerns")
+    user_concerns: Optional[str] = Form(None, description="User's specific concerns"),
+    created_at: Optional[datetime] = Form(None, description="Custom timestamp for the entry (defaults to current time if not provided)")
 ):
     user = await User.find_one(User.user_id == user_id)
     if not user:
@@ -312,7 +317,8 @@ async def create_mole_entry(
         image_ext=image_ext,
         photo_path=photo_path,
         user_notes=user_notes,
-        user_concerns=user_concerns
+        user_concerns=user_concerns,
+        created_at=created_at if created_at is not None else datetime.utcnow()
     )
     
     if sequence_id:

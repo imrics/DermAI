@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional
+from datetime import datetime
 from app.models import MedicationCategory
 
 class UserCreate(BaseModel):
@@ -9,6 +10,7 @@ class EntryCreate(BaseModel):
     sequence_id: Optional[str] = None
     user_notes: Optional[str] = None
     user_concerns: Optional[str] = None
+    created_at: Optional[datetime] = None
 
 class MedicationCreate(BaseModel):
     category: MedicationCategory
