@@ -11,6 +11,24 @@ def encode_image(image_path: str) -> str:
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode('utf-8')
 
+def parse_treatment_string(treatment_str: str) -> List[str]:
+    """Parse treatment string into array of individual treatments"""
+    if not treatment_str:
+        return []
+    
+    # Split by common delimiters and clean up
+    treatments = []
+    # Split by comma first
+    parts = treatment_str.split(',')
+    
+    for part in parts:
+        # Clean up whitespace and common prefixes
+        cleaned = part.strip()
+        if cleaned:
+            treatments.append(cleaned)
+    
+    return treatments
+
 def extract_json_from_response(response_text: str) -> Dict[str, Any]:
     """Extract JSON from AI response, handling cases where response contains extra text"""
     print(f"DEBUG: Raw AI response: {response_text}")
@@ -121,7 +139,8 @@ def summarize_entry_for_prompt(e: Entry) -> str:
     if e.recommendations:
         parts.append(f"Prev AI recommendations: {e.recommendations}")
     if e.treatment:
-        parts.append(f"Prev AI treatment: {e.treatment}")
+        treatment_str = ", ".join(e.treatment) if isinstance(e.treatment, list) else str(e.treatment)
+        parts.append(f"Prev AI treatment: {treatment_str}")
     return " | ".join(parts)
 
 async def build_timeline_payload(entry: Entry, analysis_type: str) -> Tuple[str, List[Dict[str, str]]]:
@@ -491,7 +510,7 @@ async def get_hairline_feedback(entry: HairlineEntry) -> Dict[str, Any]:
         entry.norwood_score = mapped_result["Norwood"]
         entry.ai_comments = mapped_result["Comments"]
         entry.recommendations = mapped_result["Recommendations"]
-        entry.treatment = mapped_result["Treatment"]
+        entry.treatment = parse_treatment_string(mapped_result["Treatment"])
         await entry.save()
         
         return mapped_result
@@ -509,7 +528,7 @@ async def get_hairline_feedback(entry: HairlineEntry) -> Dict[str, Any]:
         entry.norwood_score = 2
         entry.ai_comments = fallback_result["Comments"]
         entry.recommendations = fallback_result["Recommendations"]
-        entry.treatment = fallback_result["Treatment"]
+        entry.treatment = parse_treatment_string(fallback_result["Treatment"])
         await entry.save()
         
         return fallback_result
@@ -539,7 +558,7 @@ async def get_acne_feedback(entry: AcneEntry) -> Dict[str, Any]:
         entry.severity_level = mapped_result["SeverityLevel"]
         entry.ai_comments = mapped_result["Comments"]
         entry.recommendations = mapped_result["Recommendations"]
-        entry.treatment = mapped_result["Treatment"]
+        entry.treatment = parse_treatment_string(mapped_result["Treatment"])
         await entry.save()
         
         return mapped_result
@@ -557,7 +576,7 @@ async def get_acne_feedback(entry: AcneEntry) -> Dict[str, Any]:
         entry.severity_level = "mild"
         entry.ai_comments = fallback_result["Comments"]
         entry.recommendations = fallback_result["Recommendations"]
-        entry.treatment = fallback_result["Treatment"]
+        entry.treatment = parse_treatment_string(fallback_result["Treatment"])
         await entry.save()
         
         return fallback_result
@@ -587,7 +606,7 @@ async def get_mole_feedback(entry: MoleEntry) -> Dict[str, Any]:
         entry.irregularities_detected = mapped_result["IrregularitiesDetected"]
         entry.ai_comments = mapped_result["Comments"]
         entry.recommendations = mapped_result["Recommendations"]
-        entry.treatment = mapped_result["Treatment"]
+        entry.treatment = parse_treatment_string(mapped_result["Treatment"])
         await entry.save()
         
         return mapped_result
@@ -605,7 +624,7 @@ async def get_mole_feedback(entry: MoleEntry) -> Dict[str, Any]:
         entry.irregularities_detected = False
         entry.ai_comments = fallback_result["Comments"]
         entry.recommendations = fallback_result["Recommendations"]
-        entry.treatment = fallback_result["Treatment"]
+        entry.treatment = parse_treatment_string(fallback_result["Treatment"])
         await entry.save()
         
         return fallback_result

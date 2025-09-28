@@ -211,10 +211,10 @@ async def create_hairline_entry(
     
     # Get AI feedback
     try:
-        ai_result = await entry.get_ai_feedback()
-        return {"entry": entry, "ai_feedback": ai_result}
+        await entry.get_ai_feedback()
+        return {"entry": entry}
     except Exception as e:
-        return {"entry": entry, "ai_feedback": None, "error": str(e)}
+        return {"entry": entry, "error": str(e)}
 
 @app.post(
     "/users/{user_id}/acne-entries",
@@ -251,10 +251,10 @@ async def create_acne_entry(
     
     # Get AI feedback
     try:
-        ai_result = await entry.get_ai_feedback()
-        return {"entry": entry, "ai_feedback": ai_result}
+        await entry.get_ai_feedback()
+        return {"entry": entry}
     except Exception as e:
-        return {"entry": entry, "ai_feedback": None, "error": str(e)}
+        return {"entry": entry, "error": str(e)}
 
 @app.post(
     "/users/{user_id}/mole-entries",
@@ -291,10 +291,10 @@ async def create_mole_entry(
     
     # Get AI feedback
     try:
-        ai_result = await entry.get_ai_feedback()
-        return {"entry": entry, "ai_feedback": ai_result}
+        await entry.get_ai_feedback()
+        return {"entry": entry}
     except Exception as e:
-        return {"entry": entry, "ai_feedback": None, "error": str(e)}
+        return {"entry": entry, "error": str(e)}
 
 # Entry Retrieval
 @app.get(
