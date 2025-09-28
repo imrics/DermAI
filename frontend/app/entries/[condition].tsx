@@ -38,6 +38,7 @@ import {
 import { useUser } from '@/hooks/use-user';
 import { useSequenceId } from '@/hooks/use-sequence-id';
 import { spacing, TextColors, Brand } from '@/constants/theme';
+import { AddMoleEntryModal } from '@/components/AddMoleEntryModal';
 
 const CONDITION_MAP: Record<string, { title: string; entryType: EntryType; subtitle: string }> = {
   norwood: {
@@ -92,6 +93,7 @@ export default function ConditionEntriesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showMoleModal, setShowMoleModal] = useState(false);
 
   const isValidCondition = !!conditionConfig && !!entryType;
 
@@ -108,6 +110,32 @@ export default function ConditionEntriesScreen() {
       Alert.alert('Unable to load entries', 'Please check your connection and try again.');
     }
   }, [entryType, user]);
+
+  // Get existing mole entries for grid display
+  const existingMoleEntries = useMemo(() => {
+    if (conditionKey !== 'moles') return [];
+    return entries
+      .filter(entry => entry.sequence_id)
+      .reduce((acc, entry) => {
+        const existingIndex = acc.findIndex(item => item.location === entry.sequence_id);
+        if (existingIndex >= 0) {
+          // Keep the entry with the most recent image
+          if (new Date(entry.created_at) > new Date(acc[existingIndex].entry.created_at)) {
+            acc[existingIndex] = {
+              location: entry.sequence_id!,
+              entry: entry,
+            };
+          }
+        } else {
+          acc.push({
+            location: entry.sequence_id!,
+            entry: entry,
+          });
+        }
+        return acc;
+      }, [] as { location: string; entry: EntrySummary }[])
+      .sort((a, b) => a.location.localeCompare(b.location));
+  }, [entries, conditionKey]);
 
   useFocusEffect(
     useCallback(() => {
@@ -225,10 +253,17 @@ export default function ConditionEntriesScreen() {
         setUploading(false);
       }
     },
-    [conditionKey, entryType, fetchEntries, router, user],
+    [conditionKey, entryType, fetchEntries, router, user, getSequenceId, setSequenceId],
   );
 
   const handleNewEntry = useCallback(() => {
+    // For mole entries, show the custom modal
+    if (conditionKey === 'moles') {
+      setShowMoleModal(true);
+      return;
+    }
+
+    // For other entry types, use the original flow
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
@@ -247,7 +282,7 @@ export default function ConditionEntriesScreen() {
         { text: 'Cancel', style: 'cancel' },
       ]);
     }
-  }, [openPicker]);
+  }, [openPicker, conditionKey]);
 
   useLayoutEffect(() => {
     if (!isValidCondition) return;
@@ -417,6 +452,16 @@ export default function ConditionEntriesScreen() {
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" />
         </View>
+      )}
+
+      {/* Mole entry modal */}
+      {conditionKey === 'moles' && (
+        <AddMoleEntryModal
+          visible={showMoleModal}
+          onClose={() => setShowMoleModal(false)}
+          onEntryAdded={fetchEntries}
+          existingMoleEntries={existingMoleEntries}
+        />
       )}
     </SafeAreaView>
   );

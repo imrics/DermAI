@@ -399,24 +399,52 @@ export async function deleteMedication(medicationId: string): Promise<void> {
   });
 }
 
-export async function exportPdf(userId: string): Promise<string> {
-  const data = await apiFetch(`/users/${userId}/export-pdf`, {
+export async function exportPdf(userId: string): Promise<{ blob: Blob; filename: string }> {
+  const response = await fetch(`${API_BASE_URL}/users/${userId}/export-pdf`, {
     method: 'GET',
+    headers: {
+      'Accept': 'application/pdf,*/*',
+    },
   });
 
-  if (typeof data === 'string') {
-    return data;
+  if (!response.ok) {
+    let errorMessage = `Request failed with status ${response.status}`;
+    try {
+      const errorData = await response.text();
+      if (errorData) {
+        errorMessage += `: ${errorData}`;
+      }
+    } catch {
+      // Ignore error parsing error message
+    }
+    throw new ApiError(errorMessage, response.status, null);
   }
 
-  if (data && typeof data === 'object' && 'url' in data) {
-    return String((data as { url: string }).url);
+  // Get the PDF blob from the response
+  const pdfBlob = await response.blob();
+
+  // Debug: Log blob size and type
+  console.log('PDF Blob size:', pdfBlob.size, 'bytes');
+  console.log('PDF Blob type:', pdfBlob.type);
+
+  // Extract filename from response headers
+  const contentDisposition = response.headers.get('content-disposition');
+  let filename = `dermatology_report_${userId}.pdf`;
+  if (contentDisposition) {
+    const match = contentDisposition.match(/filename="([^"]+)"/);
+    if (match) {
+      filename = match[1];
+    }
   }
 
-  if (Platform.OS === 'web' && data) {
-    return URL.createObjectURL(new Blob([JSON.stringify(data)], { type: 'application/json' }));
+  // Additional debugging: Check if this looks like a PDF
+  if (pdfBlob.size < 1000) {
+    // Small file - might be an error response
+    const textContent = await pdfBlob.text();
+    console.error('Small PDF response - possibly error:', textContent);
   }
 
-  throw new Error('Unexpected export response format.');
+  return { blob: pdfBlob, filename };
 }
 
 export function getImageUrl(imageId?: string | null) {

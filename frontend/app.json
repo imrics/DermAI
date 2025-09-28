@@ -1,13 +1,14 @@
 {
   "expo": {
-    "name": "frontend",
-    "slug": "frontend",
+    "name": "DermAI",
+    "slug": "dermai",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "frontend",
+    "scheme": "dermai",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "sdkVersion": "54.0.0",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.anaroglu.DermAIVTHacks"
