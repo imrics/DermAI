@@ -1,25 +1,20 @@
-import React from 'react';
-import { Slot } from 'expo-router';
-import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { Ionicons } from '@expo/vector-icons';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
 
 export default function TabsLayout() {
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
-        <Ionicons name="home-outline" size={24} />
-        Home
+      <Label>Home</Label>
+        <Icon sf={"house.fill"}></Icon>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="medications">
-        <Ionicons name="medical-outline" size={24} />
-        Medications
+      <Label>Medications</Label>
+        <Icon sf={"pills.fill"}></Icon>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="export">
-        <Ionicons name="share-outline" size={24} />
-        Export
+      <Label>Export</Label>
+        <Icon sf={"square.and.arrow.up"}></Icon>
       </NativeTabs.Trigger>
-      <Slot />
     </NativeTabs>
   );
 }
