@@ -29,6 +29,12 @@ class Medication(Document):
     
     class Settings:
         name = "medications"
+        
+    def dict(self, *args, **kwargs):
+        """Override dict method to include medication_id"""
+        data = super().dict(*args, **kwargs)
+        data['medication_id'] = str(self.id)
+        return data
 
 class Entry(Document):
     sequence_id: str = Field(default_factory=lambda: str(uuid.uuid4()))

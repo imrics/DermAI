@@ -42,6 +42,8 @@ export interface EntryDetail extends EntrySummary {
 
 export interface Medication {
   medication_id: string;
+  id?: string; // Alternative ID field for backend compatibility
+  _id?: string; // MongoDB's default ID field
   category: MedicationCategory;
   name: string;
   dosage?: string | null;
@@ -96,7 +98,7 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
   if (text) {
     try {
       data = JSON.parse(text);
-    } catch (error) {
+    } catch {
       data = text;
     }
   }
@@ -284,7 +286,7 @@ export async function getEntries(userId: string, entryType?: EntryType): Promise
       ? (data as any).entries
       : [];
 
-  return list.map((item) => normalizeEntrySummary(item));
+  return list.map((item: any) => normalizeEntrySummary(item));
 }
 
 export async function getEntry(entryId: string): Promise<EntryDetail> {
@@ -377,14 +379,22 @@ export async function updateMedication(
   medicationId: string,
   payload: MedicationUpdatePayload,
 ): Promise<Medication> {
-  return apiFetch<Medication>(`/medications/${medicationId}`, {
+  if (!medicationId || medicationId.trim() === '' || medicationId === 'undefined') {
+    throw new Error('Invalid medication ID provided');
+  }
+  
+  return apiFetch<Medication>(`/medications/${medicationId.trim()}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
 }
 
 export async function deleteMedication(medicationId: string): Promise<void> {
-  await apiFetch(`/medications/${medicationId}`, {
+  if (!medicationId || medicationId.trim() === '' || medicationId === 'undefined') {
+    throw new Error('Invalid medication ID provided');
+  }
+  
+  await apiFetch(`/medications/${medicationId.trim()}`, {
     method: 'DELETE',
   });
 }

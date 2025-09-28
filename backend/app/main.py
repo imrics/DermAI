@@ -141,13 +141,24 @@ async def get_medications(
     description="Update an existing medication's details."
 )
 async def update_medication(medication_id: str, update_data: MedicationUpdate):
-    medication = await Medication.get(medication_id)
-    if not medication:
-        raise HTTPException(status_code=404, detail="Medication not found")
+    # Validate medication_id format
+    if not medication_id or medication_id.strip() == "undefined" or medication_id.strip() == "":
+        raise HTTPException(status_code=400, detail="Invalid medication ID")
     
-    update_dict = {k: v for k, v in update_data.dict().items() if v is not None}
-    await medication.update({"$set": update_dict})
-    return medication
+    try:
+        medication = await Medication.get(medication_id)
+        if not medication:
+            raise HTTPException(status_code=404, detail="Medication not found")
+        
+        update_dict = {k: v for k, v in update_data.dict().items() if v is not None}
+        await medication.update({"$set": update_dict})
+        return medication
+    except ValueError as e:
+        # Handle invalid ObjectId format
+        raise HTTPException(status_code=400, detail="Invalid medication ID format")
+    except Exception as e:
+        # Handle other potential errors
+        raise HTTPException(status_code=500, detail=f"Failed to update medication: {str(e)}")
 
 @app.delete(
     "/medications/{medication_id}",
@@ -156,12 +167,23 @@ async def update_medication(medication_id: str, update_data: MedicationUpdate):
     description="Remove a medication from the user's profile."
 )
 async def delete_medication(medication_id: str):
-    medication = await Medication.get(medication_id)
-    if not medication:
-        raise HTTPException(status_code=404, detail="Medication not found")
+    # Validate medication_id format
+    if not medication_id or medication_id.strip() == "undefined" or medication_id.strip() == "":
+        raise HTTPException(status_code=400, detail="Invalid medication ID")
     
-    await medication.delete()
-    return {"message": "Medication deleted successfully"}
+    try:
+        medication = await Medication.get(medication_id)
+        if not medication:
+            raise HTTPException(status_code=404, detail="Medication not found")
+        
+        await medication.delete()
+        return {"message": "Medication deleted successfully"}
+    except ValueError as e:
+        # Handle invalid ObjectId format
+        raise HTTPException(status_code=400, detail="Invalid medication ID format")
+    except Exception as e:
+        # Handle other potential errors
+        raise HTTPException(status_code=500, detail=f"Failed to delete medication: {str(e)}")
 
 # Entry Management
 async def save_upload_file(upload_file: UploadFile, user_id: str) -> (str, str, str):

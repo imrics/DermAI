@@ -140,7 +140,15 @@ export default function MedicationsScreen() {
     try {
       setSubmitting(true);
       if (editingMedication) {
-        await updateMedication(editingMedication.medication_id, {
+        const medicationId = editingMedication.medication_id || editingMedication.id || (editingMedication as any)._id;
+        
+        if (!medicationId || medicationId === 'undefined') {
+          console.error('Invalid medication ID for update:', medicationId, 'Full medication object:', editingMedication);
+          Alert.alert('Save failed', 'Invalid medication ID. Please refresh the page and try again.');
+          return;
+        }
+
+        await updateMedication(medicationId, {
           name: formState.name.trim(),
           dosage: formState.dosage.trim() || undefined,
           frequency: formState.frequency.trim() || undefined,
@@ -172,9 +180,18 @@ export default function MedicationsScreen() {
 
   const handleDelete = useCallback(
     (medication: Medication) => {
+      // Validate medication ID before attempting deletion
+      const medicationId = medication.medication_id || medication.id || (medication as any)._id;
+      
+      if (!medicationId || medicationId === 'undefined') {
+        console.error('Invalid medication ID:', medicationId, 'Full medication object:', medication);
+        Alert.alert('Delete failed', 'Invalid medication ID. Please refresh the page and try again.');
+        return;
+      }
+
       const performDelete = async () => {
         try {
-          await deleteMedication(medication.medication_id);
+          await deleteMedication(medicationId);
           await fetchMedications(medication.category);
         } catch (error) {
           console.error('Failed to delete medication', error);
