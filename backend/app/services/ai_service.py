@@ -197,7 +197,7 @@ async def analyze_with_timeline(analysis_type: str, global_context: str, legend_
             "norwood_score": 2,
             "observations": "Describe current hairline pattern in 2-3 sentences, include trend across timeline",
             "suggestions": "Provide care/styling suggestions and any trend-aware guidance",
-            "treatment": "Recommend specific treatments based on the Norwood stage"
+            "treatment": "List specific treatments separated by commas, no explanations"
         }}
 
         Context: {global_context}
@@ -224,6 +224,8 @@ async def analyze_with_timeline(analysis_type: str, global_context: str, legend_
         - Consider lighting and photo angle
         - Incorporate comparisons across the indexed images to note progression/regression
         - Select appropriate treatments from the guidelines above based on the determined Norwood stage
+        - For treatment field: provide ONLY comma-separated treatment names, no explanations or connecting words
+        - Example treatment format: "Ketoconazole 1–2% shampoo, minoxidil oral 2.5 mg, minoxidil topical 5%, low-level laser therapy"
         """
     elif analysis_type == "skin_texture":
         prompt = f"""
@@ -234,7 +236,7 @@ async def analyze_with_timeline(analysis_type: str, global_context: str, legend_
             "texture_level": "smooth",
             "observations": "Describe current texture in 2-3 sentences, include trend across timeline", 
             "suggestions": "Provide general routine suggestions informed by trends",
-            "treatment": "Recommend specific acne treatments based on severity level"
+            "treatment": "List specific acne treatments separated by commas, no explanations"
         }}
 
         Context: {global_context}
@@ -249,6 +251,8 @@ async def analyze_with_timeline(analysis_type: str, global_context: str, legend_
         REQUIREMENTS:
         - Emphasize changes over time using the indexed images
         - Select appropriate treatments from the guidelines above based on the determined texture level/severity
+        - For treatment field: provide ONLY comma-separated treatment names, no explanations or connecting words
+        - Example treatment format: "Oral antibiotics (doxycycline, minocycline, azithromycin), clindamycin + benzoyl peroxide gel, tazarotene"
         """
     else:  # skin_feature
         prompt = f"""
@@ -259,7 +263,7 @@ async def analyze_with_timeline(analysis_type: str, global_context: str, legend_
             "feature_regular": true,
             "observations": "Describe current feature characteristics in 2-3 sentences, include trend across timeline",
             "suggestions": "Provide monitoring and care suggestions considering changes over time",
-            "treatment": "Recommend appropriate treatment based on feature characteristics"
+            "treatment": "List specific treatments separated by commas, no explanations"
         }}
 
         Context: {global_context}
@@ -275,6 +279,8 @@ async def analyze_with_timeline(analysis_type: str, global_context: str, legend_
         - Emphasize changes over time using the indexed images
         - Select appropriate treatments from the guidelines above based on feature regularity assessment
         - Always recommend professional consultation for suspicious features
+        - For treatment field: provide ONLY comma-separated treatment names, no explanations or connecting words
+        - Example treatment format: "Dermoscopy, punch biopsy, excisional biopsy, wide local excision, sentinel lymph node biopsy"
         """
 
     try:
@@ -348,7 +354,7 @@ async def analyze_image_generic(base64_image: str, analysis_type: str, context: 
             "norwood_score": 2,
             "observations": "Describe the hairline recession pattern, temple areas, crown thinning, and overall hair density in 2-3 sentences",
             "suggestions": "Provide hair care recommendations and styling suggestions based on the current pattern",
-            "treatment": "Recommend specific treatments based on the Norwood stage"
+            "treatment": "List specific treatments separated by commas, no explanations"
         }}
         
         Context: {context}
@@ -377,6 +383,8 @@ async def analyze_image_generic(base64_image: str, analysis_type: str, context: 
         - Err on the side of underestimating rather than overestimating hair loss
         - Provide the norwood_score as an integer from 1-7
         - Select appropriate treatments from the guidelines above based on the determined Norwood stage
+        - For treatment field: provide ONLY comma-separated treatment names, no explanations or connecting words
+        - Example treatment format: "Ketoconazole 1–2% shampoo, minoxidil oral 2.5 mg, minoxidil topical 5%, low-level laser therapy"
         """
         
     elif analysis_type == "skin_texture":
@@ -388,7 +396,7 @@ async def analyze_image_generic(base64_image: str, analysis_type: str, context: 
             "texture_level": "smooth",
             "observations": "Describe the skin texture and appearance in 2-3 sentences", 
             "suggestions": "Provide general skincare routine suggestions",
-            "treatment": "Recommend specific acne treatments based on severity level"
+            "treatment": "List specific acne treatments separated by commas, no explanations"
         }}
         
         Context: {context}
@@ -402,6 +410,8 @@ async def analyze_image_generic(base64_image: str, analysis_type: str, context: 
         
         REQUIREMENTS:
         - Select appropriate treatments from the guidelines above based on the determined texture level/severity
+        - For treatment field: provide ONLY comma-separated treatment names, no explanations or connecting words
+        - Example treatment format: "Oral antibiotics (doxycycline, minocycline, azithromycin), clindamycin + benzoyl peroxide gel, tazarotene"
         """
         
     elif analysis_type == "skin_feature":
@@ -413,7 +423,7 @@ async def analyze_image_generic(base64_image: str, analysis_type: str, context: 
             "feature_regular": true,
             "observations": "Describe the skin feature characteristics in 2-3 sentences",
             "suggestions": "Provide general monitoring and care suggestions",
-            "treatment": "Recommend appropriate treatment based on feature characteristics"
+            "treatment": "List specific treatments separated by commas, no explanations"
         }}
         
         Context: {context}
@@ -428,6 +438,8 @@ async def analyze_image_generic(base64_image: str, analysis_type: str, context: 
         REQUIREMENTS:
         - Select appropriate treatments from the guidelines above based on feature regularity assessment
         - Always recommend professional consultation for suspicious features
+        - For treatment field: provide ONLY comma-separated treatment names, no explanations or connecting words
+        - Example treatment format: "Dermoscopy, punch biopsy, excisional biopsy, wide local excision, sentinel lymph node biopsy"
         """
     
     try:
