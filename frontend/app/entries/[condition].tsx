@@ -36,6 +36,7 @@ import {
   getImageUrl,
 } from '@/lib/api';
 import { useUser } from '@/hooks/use-user';
+import { useSequenceId } from '@/hooks/use-sequence-id';
 import { spacing, TextColors } from '@/constants/theme';
 
 const CONDITION_MAP: Record<string, { title: string; entryType: EntryType; subtitle: string }> = {
@@ -80,6 +81,7 @@ export default function ConditionEntriesScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const { user } = useUser();
+  const { getSequenceId, setSequenceId } = useSequenceId();
   const params = useLocalSearchParams<{ condition?: string }>();
 
   const conditionKey = (params.condition ?? '').toLowerCase();
@@ -186,15 +188,27 @@ export default function ConditionEntriesScreen() {
           return;
         }
 
+        // For hairline and acne, get the stored sequence_id or let server generate one
+        let sequenceId: string | null = null;
+        if (entryType === 'hairline' || entryType === 'acne') {
+          sequenceId = await getSequenceId(entryType);
+        }
+
         const payload: CreateEntryPayload = {
           photo: {
             uri: asset.uri,
             name: asset.fileName ?? `entry-${Date.now()}.jpg`,
             type: asset.mimeType ?? 'image/jpeg',
           },
+          sequence_id: sequenceId,
         };
 
         const entry = await createEntry(user.id, entryType, payload);
+        
+        // Store the sequence_id returned from server for hairline and acne entries
+        if ((entryType === 'hairline' || entryType === 'acne') && entry.sequence_id) {
+          await setSequenceId(entryType, entry.sequence_id);
+        }
         await fetchEntries();
 
         const entryId = entry.entry_id;

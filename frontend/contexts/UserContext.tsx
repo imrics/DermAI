@@ -1,13 +1,21 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { createUser as apiCreateUser, getUser, User, UserResponse } from '@/lib/api';
+import { createUser as apiCreateUser, getUser, UserResponse } from '@/lib/api';
 
 const STORAGE_KEY = '@dermai/user';
+const SEQUENCE_IDS_KEY = '@dermai/sequence_ids';
 
 type StoredUser = {
   id: string;
   name: string;
+};
+
+type SequenceIds = {
+  [userId: string]: {
+    hairline?: string;
+    acne?: string;
+  };
 };
 
 type UserContextValue = {
@@ -16,11 +24,13 @@ type UserContextValue = {
   createUser: (name: string) => Promise<StoredUser>;
   refreshUser: () => Promise<UserResponse | null>;
   signOut: () => Promise<void>;
+  getSequenceId: (entryType: 'hairline' | 'acne') => Promise<string | null>;
+  setSequenceId: (entryType: 'hairline' | 'acne', sequenceId: string) => Promise<void>;
 };
 
 const UserContext = createContext<UserContextValue | undefined>(undefined);
 
-export function UserProvider({ children }: { children: React.ReactNode }) {
+export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<StoredUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -80,6 +90,39 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     await persistUser(null);
   }, [persistUser]);
 
+  const getSequenceId = useCallback(async (entryType: 'hairline' | 'acne'): Promise<string | null> => {
+    if (!user) return null;
+    
+    try {
+      const stored = await AsyncStorage.getItem(SEQUENCE_IDS_KEY);
+      if (stored) {
+        const sequenceIds = JSON.parse(stored) as SequenceIds;
+        return sequenceIds[user.id]?.[entryType] || null;
+      }
+    } catch (error) {
+      console.warn('Failed to load sequence IDs', error);
+    }
+    return null;
+  }, [user]);
+
+  const setSequenceId = useCallback(async (entryType: 'hairline' | 'acne', sequenceId: string): Promise<void> => {
+    if (!user) return;
+    
+    try {
+      const stored = await AsyncStorage.getItem(SEQUENCE_IDS_KEY);
+      const sequenceIds: SequenceIds = stored ? JSON.parse(stored) : {};
+      
+      if (!sequenceIds[user.id]) {
+        sequenceIds[user.id] = {};
+      }
+      
+      sequenceIds[user.id][entryType] = sequenceId;
+      await AsyncStorage.setItem(SEQUENCE_IDS_KEY, JSON.stringify(sequenceIds));
+    } catch (error) {
+      console.warn('Failed to save sequence ID', error);
+    }
+  }, [user]);
+
   const value = useMemo(
     () => ({
       user,
@@ -87,11 +130,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       createUser,
       refreshUser,
       signOut,
+      getSequenceId,
+      setSequenceId,
     }),
-    [createUser, isLoading, refreshUser, signOut, user],
+    [createUser, isLoading, refreshUser, signOut, user, getSequenceId, setSequenceId],
   );
 
-  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
+  return <UserContext.Provider value={value}>{children}</UserContext.Provider> as any;
 }
 
 export function useUserContext() {
