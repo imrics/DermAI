@@ -94,6 +94,15 @@ async def get_user(user_id: str):
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
+@app.get(
+    "/health",
+    tags=["System"],
+    summary="Health check",
+    description="Simple health check endpoint to verify the API is running."
+)
+async def health_check():
+    return {"status": "healthy", "message": "DermAI API is running"}
+
 # Medication Management
 @app.post(
     "/users/{user_id}/medications",

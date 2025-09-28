@@ -265,6 +265,7 @@ export default function MedicationsScreen() {
   const renderMedication = useCallback(
     ({ item }: { item: Medication }) => (
       <Pressable
+        key={item.medication_id}
         style={({ pressed }) => [styles.medRow, pressed && styles.medRowPressed]}
         onPress={() => openMedicationMenu(item)}
       >

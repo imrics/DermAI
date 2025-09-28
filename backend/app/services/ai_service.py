@@ -2,14 +2,34 @@ import os
 import base64
 import json
 import re
+import logging
+import traceback
 from typing import Dict, Any, List, Tuple
-from openai import AsyncOpenAI
+import google.generativeai as genai
 from app.models import HairlineEntry, MoleEntry, AcneEntry, Medication, MedicationCategory, Entry
 from datetime import datetime
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
 def encode_image(image_path: str) -> str:
-    with open(image_path, "rb") as image_file:
-        return base64.b64encode(image_file.read()).decode('utf-8')
+    try:
+        with open(image_path, "rb") as image_file:
+            image_data = image_file.read()
+            encoded = base64.b64encode(image_data).decode('utf-8')
+            logger.info(f"Successfully encoded image: {image_path} ({len(encoded)} chars)")
+            return encoded
+    except Exception as e:
+        logger.error(f"Failed to encode image {image_path}: {type(e).__name__}: {str(e)}")
+        # Return a minimal valid base64 string as fallback
+        return base64.b64encode(b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==").decode('utf-8')
 
 def parse_treatment_string(treatment_str: str) -> List[str]:
     """Parse treatment string into array of individual treatments with title case"""
@@ -32,27 +52,27 @@ def parse_treatment_string(treatment_str: str) -> List[str]:
 
 def extract_json_from_response(response_text: str) -> Dict[str, Any]:
     """Extract JSON from AI response, handling cases where response contains extra text"""
-    print(f"DEBUG: Raw AI response: {response_text}")
-    
+    logger.info(f"Processing AI response: {len(response_text)} characters")
+
     try:
         # First try to parse as direct JSON
         result = json.loads(response_text)
-        print(f"DEBUG: Successfully parsed JSON: {result}")
+        logger.info(f"Successfully parsed JSON response: {result}")
         return result
     except json.JSONDecodeError as e:
-        print(f"DEBUG: JSON decode error: {e}")
+        logger.warning(f"JSON decode error: {e}")
         # Try to find JSON within the response text
         json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
         if json_match:
             try:
                 result = json.loads(json_match.group())
-                print(f"DEBUG: Successfully extracted JSON from text: {result}")
+                logger.info(f"Successfully extracted JSON from text: {result}")
                 return result
             except json.JSONDecodeError as e2:
-                print(f"DEBUG: Failed to parse extracted JSON: {e2}")
-        
+                logger.error(f"Failed to parse extracted JSON: {e2}")
+
         # If no valid JSON found, return a default structure
-        print(f"DEBUG: Falling back to default structure. Original response: {response_text}")
+        logger.warning(f"Falling back to default structure. Original response length: {len(response_text)}")
         return {
             "Comments": response_text[:500] + "..." if len(response_text) > 500 else response_text,
             "Recommendations": "Please consult with a professional for proper evaluation."
@@ -189,9 +209,33 @@ async def build_timeline_payload(entry: Entry, analysis_type: str) -> Tuple[str,
     return legend, image_payloads
 
 async def analyze_with_timeline(analysis_type: str, global_context: str, legend_text: str, images: List[Dict[str, str]]) -> Dict[str, Any]:
+    logger.info(f"Starting timeline analysis for {analysis_type} with {len(images)} images")
+    logger.debug(f"Legend text length: {len(legend_text)} characters")
+
+    # Configure Gemini API
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        logger.error("GEMINI_API_KEY not found in environment")
+        raise ValueError("GEMINI_API_KEY not configured")
+
+    try:
+        genai.configure(api_key=api_key)
+        logger.info("Gemini API configured successfully")
+    except Exception as e:
+        logger.error(f"Failed to configure Gemini API: {type(e).__name__}: {str(e)}")
+        raise
+
+    # Initialize Gemini model
+    try:
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        logger.info("Gemini model initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize Gemini model: {type(e).__name__}: {str(e)}")
+        raise
+
     if analysis_type == "hair":
         prompt = f"""
-        You are a hair pattern analysis specialist. Analyze this set of hairline photos using the Norwood Scale classification system (stages 1-7).
+        You are a hair pattern analysis specialist. Analyze this set of hairline photos using the Norwood Scale classification system (stages 0-7).
 
         Respond in this exact JSON format:
         {{
@@ -205,13 +249,13 @@ async def analyze_with_timeline(analysis_type: str, global_context: str, legend_
 
         IMPORTANT NORWOOD SCALE GUIDELINES:
         - Stage 0: No visible hair loss or recession
-        - Stage 1: No visible hair loss or recession
-        - Stage 2: Minimal recession at temples, forming mature hairline
-        - Stage 3: Deeper temple recession, may have slight crown thinning
-        - Stage 4: Significant temple recession with crown thinning becoming noticeable
-        - Stage 5: Crown and temples merge, horseshoe pattern starts forming
-        - Stage 6: Crown and temple areas mostly bald with bridge of hair
-        - Stage 7: Severe hair loss with only sides and back remaining
+        - Stage 1: Minimal recession at temples, forming mature hairline
+        - Stage 2: Deeper temple recession, may have slight crown thinning
+        - Stage 3: Significant temple recession with crown thinning becoming noticeable
+        - Stage 4: Crown and temples merge, horseshoe pattern starts forming
+        - Stage 5: Crown and temple areas mostly bald with bridge of hair
+        - Stage 6: Severe hair loss with only sides and back remaining
+        - Stage 7: Completely bald
 
         TREATMENT GUIDELINES BY NORWOOD STAGE:
         - Stage 0-1: Scalp massage, biotin supplements, rosemary oil
@@ -294,41 +338,61 @@ async def analyze_with_timeline(analysis_type: str, global_context: str, legend_
         """
 
     try:
-        print(f"DEBUG: Making OpenAI request for {analysis_type} analysis with timeline...")
-        async with AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY")) as client:
-            # Build interleaved text + image content, labeling each image
-            content_parts: List[Dict[str, Any]] = [
-                {"type": "text", "text": prompt},
-                {"type": "text", "text": "TIMELINE OVERVIEW:"},
-                {"type": "text", "text": legend_text}
-            ]
-            for img in images:
-                content_parts.append({"type": "text", "text": img["label"]})
+        logger.info(f"Making Gemini request for {analysis_type} analysis with timeline...")
+
+        # Build content parts for Gemini
+        content_parts = [prompt + "\n\nTIMELINE OVERVIEW:\n" + legend_text]
+        logger.debug(f"Built prompt with legend, total content parts: 1 (prompt)")
+
+        # Add images to content parts
+        image_count = 0
+        for img in images:
+            content_parts.append(img["label"])
+            image_count += 1
+            logger.debug(f"Added label for image {image_count}: {img['label']}")
+
+            # Convert base64 to PIL Image for Gemini
+            try:
+                import io
+                from PIL import Image
+                image_data = base64.b64decode(img["base64"])
+                logger.debug(f"Decoded base64 data for image {image_count}, size: {len(image_data)} bytes")
+                image = Image.open(io.BytesIO(image_data))
+                content_parts.append(image)
+                logger.info(f"Successfully processed image {image_count} ({img['label']}) for Gemini")
+            except ImportError as e:
+                logger.warning(f"PIL import failed for image {image_count}: {e}")
+                # Fallback to base64 data
                 content_parts.append({
-                    "type": "image_url",
-                    "image_url": {"url": f"data:image/jpeg;base64,{img['base64']}"}
+                    "mime_type": "image/jpeg",
+                    "data": img["base64"]
                 })
+                logger.info(f"Used base64 fallback for image {image_count}")
+            except Exception as e:
+                logger.error(f"Failed to process image {image_count} ({img['label']}): {type(e).__name__}: {str(e)}")
+                # Fallback to base64 data
+                content_parts.append({
+                    "mime_type": "image/jpeg",
+                    "data": img["base64"]
+                })
+                logger.info(f"Used base64 fallback for image {image_count} due to error")
 
-            response = await client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are a helpful image analysis assistant that describes visual characteristics of images. You provide objective observations without medical diagnosis."
-                    },
-                    {
-                        "role": "user",
-                        "content": content_parts
-                    }
-                ],
-                max_tokens=600,
-                temperature=0.3
+        logger.info(f"Prepared {len(content_parts)} content parts for Gemini API call")
+
+        response = model.generate_content(
+            content_parts,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.3,
+                top_p=0.9,
+                top_k=40
             )
+        )
 
-        print(f"DEBUG: OpenAI response received. Content: {response.choices[0].message.content}")
-        return extract_json_from_response(response.choices[0].message.content)
+        logger.info(f"Gemini response received. Content length: {len(response.text)} characters")
+        return extract_json_from_response(response.text)
     except Exception as e:
-        print(f"DEBUG: Exception in analyze_with_timeline: {str(e)}")
+        logger.error(f"Exception in analyze_with_timeline: {type(e).__name__}: {str(e)}")
+        logger.debug(f"Full traceback: {traceback.format_exc()}")
         # Fallback per analysis type
         if analysis_type == "hair":
             return {
@@ -354,7 +418,13 @@ async def analyze_with_timeline(analysis_type: str, global_context: str, legend_
 
 async def analyze_image_generic(base64_image: str, analysis_type: str, context: str) -> Dict[str, Any]:
     """Generic image analysis function that avoids medical terminology"""
-    
+
+    # Configure Gemini API
+    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+
+    # Initialize Gemini model
+    model = genai.GenerativeModel("gemini-2.5-flash")
+
     if analysis_type == "hair":
         prompt = f"""
         You are a hair pattern analysis specialist. Analyze this hairline photo using the Norwood Scale classification system (stages 1-7).
@@ -462,34 +532,34 @@ async def analyze_image_generic(base64_image: str, analysis_type: str, context: 
         """
     
     try:
-        print(f"DEBUG: Making OpenAI request for {analysis_type} analysis...")
-        async with AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY")) as client:
-            response = await client.chat.completions.create(
-                model="gpt-4o",  # Using mini model which is less restrictive
-                messages=[
-                    {
-                        "role": "system", 
-                        "content": "You are a helpful image analysis assistant that describes visual characteristics of images. You provide objective observations without medical diagnosis."
-                    },
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": prompt},
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/jpeg;base64,{base64_image}"
-                                }
-                            }
-                        ]
-                    }
-                ],
-                max_tokens=600,
-                temperature=0.3
+        print(f"DEBUG: Making Gemini request for {analysis_type} analysis...")
+
+        # Build content for Gemini
+        try:
+            import io
+            from PIL import Image
+            image_data = base64.b64decode(base64_image)
+            image = Image.open(io.BytesIO(image_data))
+            content_parts = [prompt, image]
+        except ImportError as e:
+            print(f"DEBUG: PIL import failed: {e}")
+            # Fallback to base64 data
+            content_parts = [prompt, {
+                "mime_type": "image/jpeg",
+                "data": base64_image
+            }]
+
+        response = model.generate_content(
+            content_parts,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.3,
+                top_p=0.9,
+                top_k=40
             )
-        
-        print(f"DEBUG: OpenAI response received. Content: {response.choices[0].message.content}")
-        return extract_json_from_response(response.choices[0].message.content)
+        )
+
+        print(f"DEBUG: Gemini response received. Content: {response.text}")
+        return extract_json_from_response(response.text)
         
     except Exception as e:
         print(f"DEBUG: Exception in analyze_image_generic: {str(e)}")
