@@ -23,6 +23,12 @@ export const TextColors = {
   secondary: '#6B7280',
 };
 
+// Brand palette (centralized)
+export const Brand = {
+  purple: '#1D4ED8', // updated brand primary (blue)
+  purpleSoft: '#3B82F6', // lighter variant
+};
+
 export const Radii = { sm: 12, md: 16, lg: 24, xl: 32 };
 export const spacing = (n: number) => n * 8;
 

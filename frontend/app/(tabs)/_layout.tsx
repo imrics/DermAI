@@ -1,9 +1,10 @@
 import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
+import { Brand } from '@/constants/theme';
 
 export default function TabsLayout() {
   return (
     <NativeTabs
-      tintColor="#1D4ED8" // Selected tab color for both icons and labels
+      tintColor={Brand.purple} // Unified brand purple
     >
       <NativeTabs.Trigger name="index">
         <Label>Home</Label>

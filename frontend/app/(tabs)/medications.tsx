@@ -12,7 +12,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -27,7 +26,7 @@ import {
   updateMedication,
 } from '@/lib/api';
 import { useUser } from '@/hooks/use-user';
-import { Radii, spacing, TextColors } from '@/constants/theme';
+import { spacing, TextColors, Brand, Radii } from '@/constants/theme';
 
 const CATEGORY_CONFIG: { id: MedicationCategory; label: string; tagline: string }[] = [
   { id: 'hairline', label: 'Norwood', tagline: 'Treatments and supplements for hair loss.' },
@@ -56,6 +55,12 @@ export default function MedicationsScreen() {
 
   const [selectedCategory, setSelectedCategory] = useState<MedicationCategory>('hairline');
   const [medications, setMedications] = useState<Medication[]>([]);
+  // Track counts per category so we know if ALL categories are empty, not just the current view
+  const [categoryCounts, setCategoryCounts] = useState<Record<MedicationCategory, number>>({
+    hairline: 0,
+    acne: 0,
+    mole: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [formVisible, setFormVisible] = useState(false);
@@ -72,12 +77,30 @@ export default function MedicationsScreen() {
     const targetCategory = category ?? selectedCategory;
     try {
       const data = await getMedications(user.id, targetCategory);
-      setMedications(data ?? []);
+      // Only update the visible list if this fetch corresponds to the currently selected category
+      if (targetCategory === selectedCategory) {
+        setMedications(data ?? []);
+      }
+      setCategoryCounts((prev) => ({ ...prev, [targetCategory]: (data ?? []).length }));
     } catch (error) {
       console.error('Failed to load medications', error);
       Alert.alert('Unable to load', 'Please check your connection and try again.');
     }
   }, [selectedCategory, user]);
+
+  // Prefetch counts for all categories so we can determine global empty state
+  const prefetchAllCategoryCounts = useCallback(async () => {
+    if (!user) return;
+    await Promise.all(
+      CATEGORY_CONFIG.map(async (cfg) => {
+        try {
+          await fetchMedications(cfg.id);
+        } catch {
+          // ignore individual failures; fetchMedications already alerted/logged
+        }
+      })
+    );
+  }, [user, fetchMedications]);
 
   useFocusEffect(
     useCallback(() => {
@@ -85,14 +108,17 @@ export default function MedicationsScreen() {
       const load = async () => {
         if (!active) return;
         setLoading(true);
-        await fetchMedications();
+        // First load the selected category (updates list + count)
+        await fetchMedications(selectedCategory);
+        // Then (in background) prefetch the others for global empty state logic
+        prefetchAllCategoryCounts();
         if (active) setLoading(false);
       };
       load();
       return () => {
         active = false;
       };
-    }, [fetchMedications]),
+    }, [fetchMedications, prefetchAllCategoryCounts, selectedCategory]),
   );
 
   useEffect(() => {
@@ -154,7 +180,7 @@ export default function MedicationsScreen() {
           frequency: formState.frequency.trim() || undefined,
           notes: formState.notes.trim() || undefined,
         });
-        await fetchMedications(editingMedication.category);
+        await fetchMedications(editingMedication.category); // updates list & count
       } else {
         const payload: MedicationCreatePayload = {
           category: formState.category,
@@ -167,7 +193,7 @@ export default function MedicationsScreen() {
         if (formState.category !== selectedCategory) {
           setSelectedCategory(formState.category);
         }
-        await fetchMedications(formState.category);
+        await fetchMedications(formState.category); // updates list & count for new category
       }
       setFormVisible(false);
     } catch (error) {
@@ -192,7 +218,7 @@ export default function MedicationsScreen() {
       const performDelete = async () => {
         try {
           await deleteMedication(medicationId);
-          await fetchMedications(medication.category);
+          await fetchMedications(medication.category); // updates list & count
         } catch (error) {
           console.error('Failed to delete medication', error);
           Alert.alert('Delete failed', 'We could not delete this medication.');
@@ -238,7 +264,10 @@ export default function MedicationsScreen() {
 
   const renderMedication = useCallback(
     ({ item }: { item: Medication }) => (
-      <Pressable style={styles.medRow} onPress={() => openMedicationMenu(item)}>
+      <Pressable
+        style={({ pressed }) => [styles.medRow, pressed && styles.medRowPressed]}
+        onPress={() => openMedicationMenu(item)}
+      >
         <View style={{ flex: 1 }}>
           <Text style={styles.medName}>{item.name}</Text>
           <Text style={styles.medMeta}>
@@ -262,9 +291,6 @@ export default function MedicationsScreen() {
       <Text style={styles.emptyCopy}>
         Add treatments, supplements, or prescriptions so DermAI can personalize your insights.
       </Text>
-      <TouchableOpacity style={styles.primaryButton} onPress={() => openForm()}>
-        <Text style={styles.primaryButtonText}>Add medication</Text>
-      </TouchableOpacity>
     </View>
   );
 
@@ -277,9 +303,13 @@ export default function MedicationsScreen() {
         {CATEGORY_CONFIG.map((option) => {
           const active = option.id === selectedCategory;
           return (
-            <TouchableOpacity
+            <Pressable
               key={option.id}
-              style={[styles.segmentButton, active && styles.segmentButtonActive]}
+              style={({ pressed }) => [
+                styles.segmentButton,
+                active && styles.segmentButtonActive,
+                pressed && styles.segmentButtonPressed
+              ]}
               onPress={() => {
                   setSelectedCategory(option.id);
                   fetchMedications(option.id);
@@ -288,15 +318,26 @@ export default function MedicationsScreen() {
                 <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
                   {option.label}
                 </Text>
-            </TouchableOpacity>
+            </Pressable>
           );
         })}
       </View>
 
-      <TouchableOpacity style={styles.primaryButton} onPress={() => openForm()}>
+      <Pressable
+        style={({ pressed }) => [
+          styles.primaryButton,
+          pressed && styles.primaryButtonPressed
+        ]}
+        onPress={() => openForm()}
+      >
         <Text style={styles.primaryButtonText}>Add medication</Text>
-      </TouchableOpacity>
+      </Pressable>
     </View>
+  );
+
+  const allCategoriesEmpty = useMemo(
+    () => Object.values(categoryCounts).every((count) => count === 0),
+    [categoryCounts]
   );
 
   return (
@@ -307,7 +348,11 @@ export default function MedicationsScreen() {
         renderItem={renderMedication}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={!loading ? renderEmptyState : null}
-        contentContainerStyle={medications.length === 0 ? styles.emptyContent : styles.listContent}
+        contentContainerStyle={
+          medications.length === 0
+            ? (allCategoriesEmpty ? styles.emptyContent : styles.listContent)
+            : styles.listContent
+        }
         refreshing={refreshing}
         onRefresh={onRefresh}
       />
@@ -326,42 +371,41 @@ export default function MedicationsScreen() {
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={closeForm} disabled={submitting}>
+            <Pressable
+              onPress={closeForm}
+              disabled={submitting}
+              style={({ pressed }) => [
+                styles.modalButton,
+                pressed && styles.modalButtonPressed
+              ]}
+            >
               <Text style={styles.modalCancel}>Cancel</Text>
-            </TouchableOpacity>
+            </Pressable>
             <Text style={styles.modalTitle}>
-              {editingMedication ? 'Edit medication' : 'New medication'}
+              {editingMedication
+                ? 'Edit medication'
+                : (() => {
+                    const label = CATEGORY_CONFIG.find(c => c.id === formState.category)?.label;
+                    return label ? `Add ${label} medication` : 'Add medication';
+                  })()}
             </Text>
-            <TouchableOpacity onPress={handleSave} disabled={submitting}>
+            <Pressable
+              onPress={handleSave}
+              disabled={submitting}
+              style={({ pressed }) => [
+                styles.modalButton,
+                pressed && styles.modalButtonPressed
+              ]}
+            >
               {submitting ? (
                 <ActivityIndicator />
               ) : (
                 <Text style={styles.modalSave}>Save</Text>
               )}
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
-          {!editingMedication && (
-            <View style={styles.modalCategoryGroup}>
-              <Text style={styles.modalLabel}>Category</Text>
-              <View style={styles.segmentedControlInline}>
-                {CATEGORY_CONFIG.map((option) => {
-                  const active = option.id === formState.category;
-                  return (
-                    <TouchableOpacity
-                      key={option.id}
-                      style={[styles.segmentButtonInline, active && styles.segmentButtonActive]}
-                      onPress={() => setFormState((prev) => ({ ...prev, category: option.id }))}
-                    >
-                      <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
-                        {option.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-          )}
+          {/* Category now conveyed in the header title when creating a new medication */}
 
           <ScrollView
             style={{ flex: 1 }}
@@ -413,7 +457,7 @@ export default function MedicationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F8F5FF' },
+  safeArea: { flex: 1, backgroundColor: '#F2F2F7' }, // iOS system background
   headerBlock: {
     paddingHorizontal: spacing(2),
     paddingTop: spacing(2),
@@ -421,7 +465,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: '800',
+    fontWeight: '700',
     color: TextColors.primary,
     marginBottom: spacing(1),
   },
@@ -432,56 +476,62 @@ const styles = StyleSheet.create({
   },
   segmentedControl: {
     flexDirection: 'row',
-    backgroundColor: '#E0E7FF',
-    borderRadius: Radii.lg,
-    padding: 4,
+    backgroundColor: 'rgba(120, 120, 128, 0.16)',
+    borderRadius: 24, // Much more rounded for iOS 26
+    padding: 3,
     marginBottom: spacing(2),
   },
-  segmentedControlInline: {
-    flexDirection: 'row',
-    backgroundColor: '#E0E7FF',
-    borderRadius: Radii.lg,
-    padding: 4,
-  },
+
   segmentButton: {
     flex: 1,
-    borderRadius: Radii.md,
+    borderRadius: 21, // Very rounded to match container
     paddingVertical: spacing(1.25),
     alignItems: 'center',
   },
-  segmentButtonInline: {
-    flex: 1,
-    borderRadius: Radii.md,
-    paddingVertical: spacing(1),
-    alignItems: 'center',
-  },
+
   segmentButtonActive: {
-    backgroundColor: '#4F46E5',
-    shadowColor: '#4F46E5',
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  segmentButtonPressed: {
+    opacity: 0.6,
+    transform: [{ scale: 0.98 }],
   },
   segmentText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#4338CA',
+    fontWeight: '400',
+    color: '#000',
   },
   segmentTextActive: {
-    color: '#FFFFFF',
+    color: '#000',
+    fontWeight: '600',
   },
+
   primaryButton: {
-    backgroundColor: '#4F46E5',
-    borderRadius: Radii.lg,
-    paddingVertical: spacing(1.5),
+    backgroundColor: Brand.purple,
+    borderRadius: 25, // Very rounded iOS 26 button
+    paddingVertical: spacing(1.75),
+    paddingHorizontal: spacing(2),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing(2),
+    minHeight: 50,
+  shadowColor: Brand.purple,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  primaryButtonPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.96 }],
   },
   primaryButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   listContent: {
     paddingBottom: spacing(6),
@@ -495,35 +545,39 @@ const styles = StyleSheet.create({
   medRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(2),
+    paddingHorizontal: spacing(2.5),
+    paddingVertical: spacing(3),
     backgroundColor: '#FFFFFF',
     borderRadius: Radii.lg,
     marginHorizontal: spacing(2),
-    marginBottom: spacing(2),
+    marginBottom: spacing(1.5),
     shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  medRowPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.98 }],
   },
   medName: {
     fontSize: 17,
-    fontWeight: '700',
+    fontWeight: '600', // iOS 26 semibold
     color: TextColors.primary,
   },
   medMeta: {
     fontSize: 13,
     color: TextColors.secondary,
-    marginTop: spacing(0.5),
+    marginTop: spacing(0.25),
   },
   medNotes: {
     fontSize: 13,
     color: TextColors.secondary,
-    marginTop: spacing(0.75),
+    marginTop: spacing(0.5),
   },
   medAction: {
-    fontSize: 24,
-    color: '#9CA3AF',
+    fontSize: 22,
+    color: '#8E8E93', // iOS system gray3
     paddingHorizontal: spacing(1),
   },
   emptyState: {
@@ -532,7 +586,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: '600',
     color: TextColors.primary,
     marginBottom: spacing(1),
   },
@@ -547,32 +601,58 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.6)',
+    backgroundColor: 'rgba(242, 242, 247, 0.8)', // Updated for iOS system
   },
-  modalContainer: { flex: 1, backgroundColor: '#F9FAFB' },
+  modalContainer: { 
+    flex: 1, 
+    backgroundColor: '#F2F2F7',
+    borderTopLeftRadius: 20, // Rounded top corners for sheet presentation
+    borderTopRightRadius: 20,
+    overflow: 'hidden',
+  },
   modalHeader: {
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(1.5),
+    paddingHorizontal: spacing(2.5),
+    paddingTop: spacing(2),
+    paddingBottom: spacing(2),
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 0, // Remove separator for cleaner look
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
   },
   modalTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '600',
     color: TextColors.primary,
+  },
+  modalButton: {
+    paddingVertical: spacing(1),
+    paddingHorizontal: spacing(1.5),
+    borderRadius: 18, // More rounded modal buttons
+    minWidth: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalButtonPressed: {
+    opacity: 0.4,
+    transform: [{ scale: 0.95 }],
   },
   modalCancel: {
     fontSize: 16,
-    color: TextColors.secondary,
+    color: Brand.purple, // Purple brand color
   },
   modalSave: {
     fontSize: 16,
-    color: '#4F46E5',
-    fontWeight: '700',
+    color: Brand.purple,
+    fontWeight: '400', // Non-bold
   },
   modalForm: {
-    paddingHorizontal: spacing(3),
+    paddingHorizontal: spacing(2),
+    paddingTop: spacing(1),
     paddingBottom: spacing(4),
   },
   modalLabel: {
@@ -584,22 +664,22 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: '#FFFFFF',
-    borderRadius: Radii.lg,
-    paddingHorizontal: spacing(1.5),
+    borderRadius: 28, // Extra pill-style roundness like iOS 26 search fields
+    paddingHorizontal: spacing(2.25),
     paddingVertical: spacing(1.25),
     fontSize: 15,
     color: TextColors.primary,
+    borderWidth: 0,
+    minHeight: 50,
     shadowColor: '#000',
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
   },
   inputMultiline: {
     height: 120,
     textAlignVertical: 'top',
+    paddingTop: spacing(1.25),
   },
-  modalCategoryGroup: {
-    paddingHorizontal: spacing(3),
-    marginTop: spacing(1),
-  },
+  // (category styles removed – category now part of modal header title)
 });

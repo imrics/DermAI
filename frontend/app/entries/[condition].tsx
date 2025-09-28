@@ -37,7 +37,7 @@ import {
 } from '@/lib/api';
 import { useUser } from '@/hooks/use-user';
 import { useSequenceId } from '@/hooks/use-sequence-id';
-import { spacing, TextColors } from '@/constants/theme';
+import { spacing, TextColors, Brand } from '@/constants/theme';
 
 const CONDITION_MAP: Record<string, { title: string; entryType: EntryType; subtitle: string }> = {
   norwood: {
@@ -409,7 +409,7 @@ export default function ConditionEntriesScreen() {
             : null
         }
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F46E5" />
+    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Brand.purple} />
         }
         showsVerticalScrollIndicator={false}
       />
@@ -447,9 +447,14 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(2),
+    paddingHorizontal: spacing(2.25),
+    paddingVertical: spacing(2.25),
     backgroundColor: '#fff',
+    borderRadius: 20, // iOS 26 style elevated card rounding
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
   },
   rowTitle: {
     fontSize: 17,
@@ -464,9 +469,10 @@ const styles = StyleSheet.create({
   thumbnail: {
     width: 64,
     height: 64,
-    borderRadius: 12,
+    borderRadius: 18, // More pill-like corner per iOS 26 asset previews
     marginLeft: spacing(2),
     backgroundColor: '#E5E7EB',
+    overflow: 'hidden',
   },
   thumbnailPlaceholder: {
     alignItems: 'center',
